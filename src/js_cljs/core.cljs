@@ -45,6 +45,10 @@
 
 (defmethod parse-frag "Literal" [{:keys [value]} _] value)
 (defmethod parse-frag "Identifier" [{:keys [name]} _] name)
+(defmethod parse-frag "CallExpression" [{:keys [callee arguments]} state]
+  (let [body (cons (parse-frag callee (assoc state :single? true))
+                   (map #(parse-frag % (assoc state :single? true)) arguments))]
+    (str "(" (str/join " " body) ")")))
 
 (defmethod parse-frag "IfStatement" [{:keys [test consequent alternate]} _]
   (if alternate
@@ -58,8 +62,16 @@
          " " (parse-frag consequent {})
          ")")))
 
+(defmethod parse-frag "FunctionDeclaration" [{:keys [id params body]} state]
+  (let [params (->> params (map #(parse-frag % state)) (str/join " "))
+        body (parse-frag body (assoc state :single? false))]
+    (str "(defn " (parse-frag id state)
+         " [" params "] " body ")")))
 
-#_(from-js "!a")
+(defmethod parse-frag "ReturnStatement" [{:keys [argument]} state]
+  (parse-frag argument state))
+
+#_(from-js "function lol (a, b) { return a + b}")
 
 (defn- from-js [code]
   (-> code

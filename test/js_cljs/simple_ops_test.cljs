@@ -16,7 +16,10 @@
     (check (parse-str "a === b") => "(= a b)")
     (check (parse-str "a != b") => "(not= a b)")
     (check (parse-str "a !== b") => "(not= a b)")
-    (check (parse-str "a < b") => "(< a b)")))
+    (check (parse-str "a < b") => "(< a b)"))
+
+  (testing "fn call"
+    (check (parse-str "foo(a, b)") => "(foo a b)")))
 
 (deftest conditionals
   (testing "if-then-else"
@@ -26,6 +29,11 @@
 
   (testing "when"
     (check (parse-str "if(false) { 1; true }") => "(when false 1 true)")))
+
+(deftest functions
+  (testing "named functions"
+    (check (parse-str "function lol (a, b) { return a + b}")
+           => "(defn lol [a b] (+ a b))")))
 
 ; (deftest multi-operators
 ;   (testing "comparision"
