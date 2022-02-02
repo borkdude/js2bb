@@ -13,7 +13,7 @@
                   (str/join " "))
         locals (:locals state)]
     (cond
-      (and locals (seq @locals)) (str "(let [" (str/join " " @locals) "] " body ")")
+      (and locals (seq @locals)) (str "(let [" (str/join " " (mapcat identity @locals)) "] " body ")")
       (-> state :single? not (or (-> ops count (= 1)))) body
       :else (str "(do " body ")"))))
 
@@ -92,38 +92,66 @@
   (parse-frag argument state))
 
 (defmethod parse-frag "AssignmentExpression" [{:keys [operator left right]} state]
-  (str "(def "
-       (parse-frag left (assoc state :single? true))
-       " " (parse-frag right (assoc state :single? true))
-       ")"))
+  (let [vars (parse-frag left (assoc state :single? true))]
+    (str "(def "
+         vars
+         " " (parse-frag right (assoc state :single? true))
+         ")")))
 
-(defmethod parse-frag "AssignmentExpression" [{:keys [operator left right]} state]
-  (str "(def "
-       (parse-frag left (assoc state :single? true))
-       " " (parse-frag right (assoc state :single? true))
-       ")"))
+(defn- make-destr-def [[k v] val]
+  (str "(def " k " (.-" v " " val "))"))
 
 (defmethod parse-frag "VariableDeclaration" [{:keys [declarations]} state]
   (let [declarations (mapv #(parse-frag % state) declarations)]
     (when (:root? state)
-      (->> declarations
-           (map #(str "(def " % ")"))
-           (str/join " ")))))
+      (let [defs (for [[k v] declarations]
+                   (if (vector? k)
+                     (if (-> k count (= 1))
+                       (make-destr-def (first k) v)
+                       (let [sym '--cache
+                             inner (map #(make-destr-def % sym) k)]
+                         (str "(let [" sym " " v "] " (str/join " " inner) ")")))
+                     (str "(def " k " " v ")")))]
+        (str/join " " defs)))))
 
 (defmethod parse-frag "VariableDeclarator" [{:keys [id init]} state]
   (let [vars (:locals state)
         init (if init
                (parse-frag init (assoc state :single? true))
                "nil")
-        body (str (parse-frag id (assoc state :single? true)) " " init)]
+        body [(parse-frag id (assoc state :single? true)) init]]
     (if vars
       (swap! vars conj body)
       body)))
 
-#_
-(parse-str "function a() { const a=1,b=2; a+b }")
+(defmethod parse-frag "ObjectExpression" [{:keys [properties]} state]
+  (let [kvs (->> properties
+                 (map #(parse-frag % (assoc state :single? true)))
+                 (map (fn [[k v]] (str ":" k " " v))))]
+    (str "#js {" (str/join " " kvs) "}")))
 
-#_(from-js "function a() { const a=1,b=2; a+b }")
+(defmethod parse-frag "ArrayExpression" [{:keys [elements]} state]
+  (let [vals (map #(parse-frag % (assoc state :single? true)) elements)]
+    (str "#js [" (str/join " " vals) "]")))
+
+(defmethod parse-frag "Property" [{:keys [key value]} state]
+  [(parse-frag key (assoc state :single? true))
+   (parse-frag value (assoc state :single? true))])
+
+(defmethod parse-frag "ObjectPattern" [{:keys [properties]} state]
+  (mapv #(parse-frag % (assoc state :single? true))
+        properties))
+
+(defmethod parse-frag :default [dbg state]
+  (tap> dbg)
+  (def t (:type dbg))
+  (throw (ex-info "Not implemented!" {:element (:type dbg)})))
+
+#_
+(parse-str "a={a: 10, b: 20}")
+
+#_(from-js "const {a} = {a: 10}")
+#_(from-js "a={a: 10, b: 20}")
 
 (defn- from-js [code]
   (-> code
