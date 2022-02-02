@@ -1,0 +1,10 @@
+{
+  "name": "js2cljs",
+  "license": "MIT",
+  "devDependencies": {
+    "shadow-cljs": "^2.16.12"
+  },
+  "dependencies": {
+    "acorn": "^8.7.0"
+  }
+}
