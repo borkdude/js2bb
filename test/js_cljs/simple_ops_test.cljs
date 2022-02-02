@@ -40,24 +40,21 @@
            => "((fn [a b] (+ a b)) 1 2)")
     (check (parse-str "(function lol (a, b) { return a + b})(1, 2)")
            => "((fn lol [a b] (+ a b)) 1 2)")
-
     (check (parse-str "((a, b) => a+b)(1, 2)")
+           => "((fn [a b] (+ a b)) 1 2)")
+    (check (parse-str "((a, b) => {a+b})(1, 2)")
            => "((fn [a b] (+ a b)) 1 2)")))
 
-; (deftest multi-operators
-;   (testing "comparision"
-;     (check (parse-str "!(1 === 2)") => "(not (= 1 2))")))
-;     (check (parse-str "a && b") => "(and a b)")
-;     (check (parse-str "a || b") => "(or a b)")
-;     (check (parse-str "a == b") => "(= a b)")
-;     (check (parse-str "a === b") => "(= a b)")
-;     (check (parse-str "a != b") => "(not= a b)")
-;     (check (parse-str "a !== b") => "(not= a b)")
-;     (check (parse-str "a < b") => "(< a b)")))
-;
-; (deftest conditionals
-;   (testing "if-then-else"
-;     (check (parse-str "if(a) { b } else { c }") => "(if a b c)"))
-;
-;   (testing "when"
-;     (check (parse-str "if(a) { b }") => "(when a b)")))
+(deftest vars
+  (testing "global vars"
+    (check (parse-str "a = 10") => "(def a 10)")
+    (check (parse-str "const a = 10") => "(def a 10)")
+    (check (parse-str "let a = 10") => "(def a 10)")
+    (check (parse-str "var a = 10") => "(def a 10)"))
+
+  (testing "multiple global vars"
+    (check (parse-str "const a = 10, b=20") => "(def a 10) (def b 20)"))
+
+  (testing "local vars"
+    (check (parse-str "function a() { const a=1,b=2; a+b }")
+           => "(defn a [] (let [a 1 b 2] (+ a b)))")))

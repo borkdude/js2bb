@@ -5,14 +5,23 @@
 (defmulti parse-frag (fn [step _] (:type step)))
 
 (defn- block [step state]
-  (let [ops (map #(parse-frag % {}) (:body step))
-        body (str/join " " (map #(parse-frag % {}) (:body step)))]
-    (if (-> state :single? not (or (-> ops count (= 1))))
-      body
-      (str "(do " body ")"))))
+  (let [ops (map #(parse-frag % state) (:body step))
+        ; body (str/join " " (map #(parse-frag % state) (:body step)))
+        body (->> (:body step)
+                  (map #(parse-frag % state))
+                  (remove nil?)
+                  (str/join " "))
+        locals (:locals state)]
+    (cond
+      (and locals (seq @locals)) (str "(let [" (str/join " " @locals) "] " body ")")
+      (-> state :single? not (or (-> ops count (= 1)))) body
+      :else (str "(do " body ")"))))
 
-(defmethod parse-frag "Program" [step state] (block step state))
-(defmethod parse-frag "BlockStatement" [step state] (block step state))
+(defmethod parse-frag "Program" [step state]
+  (block step (assoc state :root? true)))
+
+(defmethod parse-frag "BlockStatement" [step state]
+  (block step (assoc state :root? false :locals (atom []))))
 
 (defmethod parse-frag "ExpressionStatement" [step state]
   (parse-frag (:expression step) state))
@@ -32,13 +41,13 @@
   (let [operator (get-operator operator)]
     (str "("
          operator
-         " " (parse-frag left {:single? true})
-         " " (parse-frag right {:single? true})
+         " " (parse-frag left (assoc state :single? true))
+         " " (parse-frag right (assoc state :single? true))
          ")")))
 
 (defmethod parse-frag "UnaryExpression" [{:keys [operator argument]} state]
   (let [operator (get-operator operator)]
-    (str "(" operator " " (parse-frag argument {:single? true}) ")")))
+    (str "(" operator " " (parse-frag argument (assoc state :single? true)) ")")))
 
 (defmethod parse-frag "BinaryExpression" [step state] (binary-exp step state))
 (defmethod parse-frag "LogicalExpression" [step state] (binary-exp step state))
@@ -50,16 +59,16 @@
                    (map #(parse-frag % (assoc state :single? true)) arguments))]
     (str "(" (str/join " " body) ")")))
 
-(defmethod parse-frag "IfStatement" [{:keys [test consequent alternate]} _]
+(defmethod parse-frag "IfStatement" [{:keys [test consequent alternate]} state]
   (if alternate
     (str "(if "
-         (parse-frag test {:single? true})
-         " " (parse-frag consequent {:single? true})
-         " " (parse-frag alternate {:single? true})
+         (parse-frag test (assoc state :single? true))
+         " " (parse-frag consequent (assoc state :single? true))
+         " " (parse-frag alternate (assoc state :single? true))
          ")")
     (str "(when "
-         (parse-frag test {:single? true})
-         " " (parse-frag consequent {})
+         (parse-frag test (assoc state :single? true))
+         " " (parse-frag consequent state)
          ")")))
 
 (defmethod parse-frag "FunctionDeclaration" [{:keys [id params body]} state]
@@ -82,7 +91,39 @@
 (defmethod parse-frag "ReturnStatement" [{:keys [argument]} state]
   (parse-frag argument state))
 
-#_(from-js "(function(a, b) { return a + b})(1, 2)")
+(defmethod parse-frag "AssignmentExpression" [{:keys [operator left right]} state]
+  (str "(def "
+       (parse-frag left (assoc state :single? true))
+       " " (parse-frag right (assoc state :single? true))
+       ")"))
+
+(defmethod parse-frag "AssignmentExpression" [{:keys [operator left right]} state]
+  (str "(def "
+       (parse-frag left (assoc state :single? true))
+       " " (parse-frag right (assoc state :single? true))
+       ")"))
+
+(defmethod parse-frag "VariableDeclaration" [{:keys [declarations]} state]
+  (let [declarations (mapv #(parse-frag % state) declarations)]
+    (when (:root? state)
+      (->> declarations
+           (map #(str "(def " % ")"))
+           (str/join " ")))))
+
+(defmethod parse-frag "VariableDeclarator" [{:keys [id init]} state]
+  (let [vars (:locals state)
+        init (if init
+               (parse-frag init (assoc state :single? true))
+               "nil")
+        body (str (parse-frag id (assoc state :single? true)) " " init)]
+    (if vars
+      (swap! vars conj body)
+      body)))
+
+#_
+(parse-str "function a() { const a=1,b=2; a+b }")
+
+#_(from-js "function a() { const a=1,b=2; a+b }")
 
 (defn- from-js [code]
   (-> code
