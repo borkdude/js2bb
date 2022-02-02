@@ -68,13 +68,16 @@
     (str "(defn " (parse-frag id state)
          " [" params "] " body ")")))
 
-(defmethod parse-frag "FunctionExpression" [{:keys [id params body]} state]
+(defn- parse-fun [{:keys [id params body]} state]
   (let [params (->> params (map #(parse-frag % state)) (str/join " "))
         body (parse-frag body (assoc state :single? false))]
     (str "(fn"
          (when-let [name (some-> id (parse-frag state))]
            (str " " name))
          " [" params "] " body ")")))
+
+(defmethod parse-frag "FunctionExpression" [step state] (parse-fun step state))
+(defmethod parse-frag "ArrowFunctionExpression" [step state] (parse-fun step state))
 
 (defmethod parse-frag "ReturnStatement" [{:keys [argument]} state]
   (parse-frag argument state))

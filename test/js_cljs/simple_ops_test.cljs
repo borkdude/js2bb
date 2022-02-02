@@ -39,7 +39,10 @@
     (check (parse-str "(function(a, b) { return a + b})(1, 2)")
            => "((fn [a b] (+ a b)) 1 2)")
     (check (parse-str "(function lol (a, b) { return a + b})(1, 2)")
-           => "((fn lol [a b] (+ a b)) 1 2)")))
+           => "((fn lol [a b] (+ a b)) 1 2)")
+
+    (check (parse-str "((a, b) => a+b)(1, 2)")
+           => "((fn [a b] (+ a b)) 1 2)")))
 
 ; (deftest multi-operators
 ;   (testing "comparision"
