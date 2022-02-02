@@ -71,11 +71,23 @@
          " " (parse-frag consequent state)
          ")")))
 
+(defn- random-identifier [] (gensym "-temp-"))
 (defmethod parse-frag "FunctionDeclaration" [{:keys [id params body]} state]
-  (let [params (->> params (map #(parse-frag % state)) (str/join " "))
-        body (parse-frag body (assoc state :single? false))]
+  (let [params (map #(parse-frag % state) params)
+        body (parse-frag body (assoc state :single? false))
+        params-detailed (for [param params]
+                          (if (vector? param)
+                            {:fun (random-identifier) :extracts-to param}
+                            {:fun param}))
+        let-params (filter :extracts-to params-detailed)
+        norm-body (if (seq let-params)
+                    (let [lets (for [{:keys [fun extracts-to]} let-params
+                                     [k v] extracts-to]
+                                 (str k " (.-" v " " fun ")"))]
+                      (str "(let [" (str/join " " lets) "] " body ")"))
+                    body)]
     (str "(defn " (parse-frag id state)
-         " [" params "] " body ")")))
+         " [" (->> params-detailed (map :fun) (str/join " ")) "] " norm-body ")")))
 
 (defn- parse-fun [{:keys [id params body]} state]
   (let [params (->> params (map #(parse-frag % state)) (str/join " "))
@@ -108,7 +120,7 @@
                    (if (vector? k)
                      (if (-> k count (= 1))
                        (make-destr-def (first k) v)
-                       (let [sym '--cache
+                       (let [sym (random-identifier)
                              inner (map #(make-destr-def % sym) k)]
                          (str "(let [" sym " " v "] " (str/join " " inner) ")")))
                      (str "(def " k " " v ")")))]
