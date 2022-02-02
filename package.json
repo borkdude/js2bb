@@ -2,7 +2,8 @@
   "name": "js2cljs",
   "license": "MIT",
   "devDependencies": {
-    "shadow-cljs": "^2.16.12"
+    "shadow-cljs": "^2.16.12",
+    "ws": "^8.4.2"
   },
   "dependencies": {
     "acorn": "^8.7.0"
