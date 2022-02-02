@@ -68,10 +68,18 @@
     (str "(defn " (parse-frag id state)
          " [" params "] " body ")")))
 
+(defmethod parse-frag "FunctionExpression" [{:keys [id params body]} state]
+  (let [params (->> params (map #(parse-frag % state)) (str/join " "))
+        body (parse-frag body (assoc state :single? false))]
+    (str "(fn"
+         (when-let [name (some-> id (parse-frag state))]
+           (str " " name))
+         " [" params "] " body ")")))
+
 (defmethod parse-frag "ReturnStatement" [{:keys [argument]} state]
   (parse-frag argument state))
 
-#_(from-js "function lol (a, b) { return a + b}")
+#_(from-js "(function(a, b) { return a + b})(1, 2)")
 
 (defn- from-js [code]
   (-> code
