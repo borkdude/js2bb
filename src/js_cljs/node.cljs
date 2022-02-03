@@ -14,7 +14,5 @@
 (def ^:private current-filename js/__filename)
 
 (defn main [ & args]
-  ; (if js/goog.DEBUG
-  ;   (prn :Connected)
-    (p/let [in (readlines)]
-      (println (parse-str in {:isHangEnabled true}))))
+  (p/let [in (readlines)]
+    (println (parse-str in {:isHangEnabled true}))))
