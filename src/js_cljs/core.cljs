@@ -1,5 +1,6 @@
 (ns js-cljs.core
   (:require ["acorn" :refer [parse]]
+            ["zprint-clj" :as zprint]
             [clojure.string :as str]))
 
 (defmulti parse-frag (fn [step _] (:type step)))
@@ -55,9 +56,12 @@
 (defmethod parse-frag "Literal" [{:keys [value]} _] value)
 (defmethod parse-frag "Identifier" [{:keys [name]} _] name)
 (defmethod parse-frag "CallExpression" [{:keys [callee arguments]} state]
-  (let [body (cons (parse-frag callee (assoc state :single? true))
-                   (map #(parse-frag % (assoc state :single? true)) arguments))]
-    (str "(" (str/join " " body) ")")))
+  (let [callee (parse-frag callee (assoc state :single? true :calling? true))
+        args (map #(parse-frag % (assoc state :single? true)) arguments)]
+    (if (string? callee)
+      (str "(" (->> args (cons callee) (str/join " ")) ")")
+      (str "(." (second callee) " " (first callee) " " (str/join " " args)
+           ")"))))
 
 (defmethod parse-frag "IfStatement" [{:keys [test consequent alternate]} state]
   (if alternate
@@ -150,6 +154,12 @@
   [(parse-frag key (assoc state :single? true))
    (parse-frag value (assoc state :single? true))])
 
+(defmethod parse-frag "MemberExpression" [{:keys [object property]} state]
+  (if (:calling? state)
+    [(parse-frag object state) (parse-frag property state)]
+    (str "(.-" (parse-frag property state)
+         " " (parse-frag object state) ")")))
+
 (defmethod parse-frag "ObjectPattern" [{:keys [properties]} state]
   (mapv #(parse-frag % (assoc state :single? true))
         properties))
@@ -157,12 +167,13 @@
 (defmethod parse-frag :default [dbg state]
   (tap> dbg)
   (def t (:type dbg))
-  (throw (ex-info "Not implemented!" {:element (:type dbg)})))
+  (throw (ex-info (str "Not implemented: " (:type dbg))
+                  {:element (:type dbg)})))
 
 #_
 (parse-str "a={a: 10, b: 20}")
 
-#_(from-js "const {a} = {a: 10}")
+#_(from-js "a.b")
 #_(from-js "a={a: 10, b: 20}")
 
 (defn- from-js [code]
@@ -172,10 +183,12 @@
       js/JSON.parse
       (js->clj :keywordize-keys true)))
 
-(defn parse-str [code]
-  (-> code
-      from-js
-      (parse-frag {})))
-
-(defn main []
-  (prn :HELLO))
+(defn parse-str
+  ([code]
+   (-> code
+       from-js
+       (parse-frag {})))
+  ([code format-opts]
+   (-> code
+       parse-str
+       (zprint (clj->js format-opts)))))
