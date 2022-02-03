@@ -43,7 +43,11 @@
     (check (parse-str "((a, b) => a+b)(1, 2)")
            => "((fn [a b] (+ a b)) 1 2)")
     (check (parse-str "((a, b) => {a+b})(1, 2)")
-           => "((fn [a b] (+ a b)) 1 2)")))
+           => "((fn [a b] (+ a b)) 1 2)"))
+
+  (testing "default options"
+    (check (parse-str "function a(b, c=1){c}")
+           => "(defn a [b c] (let [c (if (undefined? c) 1 c)] c))")))
 
 (deftest vars
   (testing "global vars"
@@ -58,3 +62,6 @@
   (testing "local vars"
     (check (parse-str "function a() { const a=1,b=2; a+b }")
            => "(defn a [] (let [a 1 b 2] (+ a b)))")))
+
+(deftest multiple-commands
+  (check (parse-str "a=1;b=2") => "(def a 1)\n(def b 2)"))

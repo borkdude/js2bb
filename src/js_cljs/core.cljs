@@ -5,13 +5,12 @@
 
 (defmulti parse-frag (fn [step _] (:type step)))
 
-(defn- block [step state]
+(defn- block [step state sep]
   (let [ops (map #(parse-frag % state) (:body step))
-        ; body (str/join " " (map #(parse-frag % state) (:body step)))
         body (->> (:body step)
                   (map #(parse-frag % state))
                   (remove nil?)
-                  (str/join " "))
+                  (str/join sep))
         locals (:locals state)]
     (cond
       (and locals (seq @locals)) (str "(let [" (str/join " " (mapcat identity @locals)) "] " body ")")
@@ -19,10 +18,10 @@
       :else (str "(do " body ")"))))
 
 (defmethod parse-frag "Program" [step state]
-  (block step (assoc state :root? true)))
+  (block step (assoc state :root? true) "\n"))
 
 (defmethod parse-frag "BlockStatement" [step state]
-  (block step (assoc state :root? false :locals (atom []))))
+  (block step (assoc state :root? false :locals (atom [])) " "))
 
 (defmethod parse-frag "ExpressionStatement" [step state]
   (parse-frag (:expression step) state))
@@ -56,7 +55,7 @@
 (defmethod parse-frag "Literal" [{:keys [value]} _] value)
 (defmethod parse-frag "Identifier" [{:keys [name]} _] name)
 (defmethod parse-frag "CallExpression" [{:keys [callee arguments]} state]
-  (let [callee (parse-frag callee (assoc state :single? true :calling? true))
+  (let [callee (parse-frag callee (assoc state :single? true :special-js? true))
         args (map #(parse-frag % (assoc state :single? true)) arguments)]
     (if (string? callee)
       (str "(" (->> args (cons callee) (str/join " ")) ")")
@@ -76,19 +75,25 @@
          ")")))
 
 (defn- random-identifier [] (gensym "-temp-"))
+(defn- to-obj-params [fun param]
+  (map (fn [[k v]] (str k " (.-" v " " fun ")")) param))
+
+(defn- to-default-param [[fun default]]
+  [fun (str "(if (undefined? " fun ") " default " " fun ")")])
+
 (defmethod parse-frag "FunctionDeclaration" [{:keys [id params body]} state]
   (let [params (map #(parse-frag % state) params)
         body (parse-frag body (assoc state :single? false))
         params-detailed (for [param params]
                           (if (vector? param)
-                            {:fun (random-identifier) :extracts-to param}
+                            (if (-> param first vector?)
+                              (let [id (random-identifier)]
+                                {:fun id :extracts-to (to-obj-params id param)})
+                              {:fun (first param) :extracts-to (to-default-param param)})
                             {:fun param}))
-        let-params (filter :extracts-to params-detailed)
+        let-params (->> params-detailed (mapcat :extracts-to) (filter identity))
         norm-body (if (seq let-params)
-                    (let [lets (for [{:keys [fun extracts-to]} let-params
-                                     [k v] extracts-to]
-                                 (str k " (.-" v " " fun ")"))]
-                      (str "(let [" (str/join " " lets) "] " body ")"))
+                    (str "(let [" (str/join " " let-params) "] " body ")")
                     body)]
     (str "(defn " (parse-frag id state)
          " [" (->> params-detailed (map :fun) (str/join " ")) "] " norm-body ")")))
@@ -108,11 +113,11 @@
   (parse-frag argument state))
 
 (defmethod parse-frag "AssignmentExpression" [{:keys [operator left right]} state]
-  (let [vars (parse-frag left (assoc state :single? true))]
-    (str "(def "
-         vars
-         " " (parse-frag right (assoc state :single? true))
-         ")")))
+  (let [vars (parse-frag left (assoc state :single? true :special-js? true))
+        val (parse-frag right (assoc state :single? true))]
+    (if (string? vars)
+      (str "(def " vars " " val ")")
+      (str "(aset " (first vars) " " (-> vars second pr-str) " " val ")"))))
 
 (defn- make-destr-def [[k v] val]
   (str "(def " k " (.-" v " " val "))"))
@@ -155,7 +160,7 @@
    (parse-frag value (assoc state :single? true))])
 
 (defmethod parse-frag "MemberExpression" [{:keys [object property]} state]
-  (if (:calling? state)
+  (if (:special-js? state)
     [(parse-frag object state) (parse-frag property state)]
     (str "(.-" (parse-frag property state)
          " " (parse-frag object state) ")")))
@@ -163,6 +168,10 @@
 (defmethod parse-frag "ObjectPattern" [{:keys [properties]} state]
   (mapv #(parse-frag % (assoc state :single? true))
         properties))
+
+(defmethod parse-frag "AssignmentPattern" [{:keys [left right]} state]
+  [(parse-frag left (assoc state :single? true))
+   (parse-frag right (assoc state :single? true))])
 
 (defmethod parse-frag :default [dbg state]
   (tap> dbg)
@@ -173,8 +182,8 @@
 #_
 (parse-str "a={a: 10, b: 20}")
 
-#_(from-js "a.b")
-#_(from-js "a={a: 10, b: 20}")
+#_(from-js "a=1;b=2")
+#_(from-js "function a({b}) {}")
 
 (defn- from-js [code]
   (-> code
