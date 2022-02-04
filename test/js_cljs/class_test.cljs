@@ -29,5 +29,16 @@
     (check (parse-str "class B {constructor(a) {} foo(a, b) { a + b } bar() {}}")
            => "(modern/defclass B (constructor [this a]) Object (foo [this a b] (+ a b)) (bar [this]))"))
 
+  (testing "getters and setters"
+    (check (parse-str "class B { get a() { return 10 } }")
+           => (str "(modern/defclass B (constructor [this])) "
+                   "(.defineProperty js/Object (.-prototype B) \"a\" "
+                   "#js {:get (fn [] (this-as this 10))})"))
+
+    (check (parse-str "class B { set a(v) { v } }")
+           => (str "(modern/defclass B (constructor [this])) "
+                   "(.defineProperty js/Object (.-prototype B) \"a\" "
+                   "#js {:set (fn [v] (this-as this v))})")))
+
   (testing "instantiating a class"
     (check (parse-str "new String(a)") => "(String. a)")))

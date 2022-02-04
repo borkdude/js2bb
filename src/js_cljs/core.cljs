@@ -187,23 +187,43 @@
 (defmethod parse-frag "SpreadElement" [{:keys [argument]} state]
   [(parse-frag argument)])
 
+(defn- gen-properties [class [property {:keys [get set]}]]
+  (str "(.defineProperty js/Object (.-prototype " class
+       ") " (pr-str property) " #js {"
+       (when get
+         (str ":get (fn [] " (str/replace-first get #".*this\]" "(this-as this")))
+       (when set
+         (let [[_ params] (re-find #"\[this (.*)\]" set)]
+          (str ":set (fn [" params "] "
+               (str/replace-first set #".*this.*\]" "(this-as this"))))
+       ")})"))
+
+(re-find #"\[this (.*)\]" "(a [this a b])")
+
 (defmethod parse-frag "ClassDeclaration" [{:keys [id, superClass, body]} state]
   (swap! (:cljs-requires state) conj '[shadow.cljs.modern :as modern])
   (let [class-name (parse-frag id state)
-        {:keys [constructor methods]} (parse-frag body state)
-        super (some-> superClass (parse-frag state))]
-    (str "(modern/defclass " class-name
-         (when super (str " (extends " super ")"))
-         " "
-         (if constructor constructor "(constructor [this])")
-         (when (seq methods)
-           (->> methods (cons " Object") (str/join " ")))
-         ")")))
+        {:keys [constructor methods properties]} (parse-frag body state)
+        super (some-> superClass (parse-frag state))
+        defclass (str "(modern/defclass " class-name
+                      (when super (str " (extends " super ")"))
+                      " "
+                      (if constructor constructor "(constructor [this])")
+                      (when (seq methods)
+                        (->> methods (cons " Object") (str/join " ")))
+                      ")")]
+    (cond-> defclass
+      properties (str (->> properties
+                           (map #(gen-properties class-name %))
+                           (cons "")
+                           (str/join " "))))))
 
 (defmethod parse-frag "ClassBody" [{:keys [body]} state]
   (reduce (fn [acc b]
             (case (:kind b)
               "constructor" (assoc acc :constructor (parse-frag b state))
+              "get" (assoc-in acc [:properties (-> b :key :name) :get] (parse-frag b state))
+              "set" (assoc-in acc [:properties (-> b :key :name) :set] (parse-frag b state))
               (update acc :methods conj (parse-frag b state))))
           {:methods []}
           body))
@@ -228,7 +248,7 @@
 (parse-str "a={a: 10, b: 20}")
 
 #_(from-js "const a = (a) => {a+1}")
-#_(from-js "function a({b}) {}")
+#_(from-js "class B { get a() { return 10 } }")
 
 (defn- from-js [code]
   (-> code
