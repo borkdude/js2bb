@@ -40,5 +40,9 @@
                    "(.defineProperty js/Object (.-prototype B) \"a\" "
                    "#js {:set (fn [v] (this-as this v))})")))
 
+  (testing "class expressions"
+    (check (parse-str "const a = class B {}")
+           => (str "(def a (modern/defclass B (constructor [this])))")))
+
   (testing "instantiating a class"
     (check (parse-str "new String(a)") => "(String. a)")))

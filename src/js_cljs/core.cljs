@@ -198,9 +198,7 @@
                (str/replace-first set #".*this.*\]" "(this-as this"))))
        ")})"))
 
-(re-find #"\[this (.*)\]" "(a [this a b])")
-
-(defmethod parse-frag "ClassDeclaration" [{:keys [id, superClass, body]} state]
+(defn- class-declaration [{:keys [id, superClass, body]} state]
   (swap! (:cljs-requires state) conj '[shadow.cljs.modern :as modern])
   (let [class-name (parse-frag id state)
         {:keys [constructor methods properties]} (parse-frag body state)
@@ -217,6 +215,10 @@
                            (map #(gen-properties class-name %))
                            (cons "")
                            (str/join " "))))))
+
+
+(defmethod parse-frag "ClassDeclaration" [props state] (class-declaration props state))
+(defmethod parse-frag "ClassExpression" [props state] (class-declaration props state))
 
 (defmethod parse-frag "ClassBody" [{:keys [body]} state]
   (reduce (fn [acc b]
@@ -245,9 +247,9 @@
                   {:element (:type dbg)})))
 
 #_
-(parse-str "a={a: 10, b: 20}")
+(parse-str "const a = class B {}")
 
-#_(from-js "const a = (a) => {a+1}")
+#_(from-js "const a = class B {}")
 #_(from-js "class B { get a() { return 10 } }")
 
 (defn- from-js [code]
