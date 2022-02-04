@@ -123,6 +123,11 @@
     (parse-frag argument state)
     "(js* \"return\")"))
 
+(defmethod parse-frag "ForOfStatement" [{:keys [left right body]} state]
+  (str "(doseq [" (-> left :declarations first :id :name)
+       " " (parse-frag right (assoc state :single? true))
+       "] " (parse-frag body (assoc state :single? false)) ")"))
+
 (defmethod parse-frag "ThrowStatement" [{:keys [argument]} state]
   (str "(throw " (parse-frag argument state) ")"))
 

@@ -1,7 +1,6 @@
 (ns js-cljs.class-test
   (:require [clojure.test :refer [deftest testing]]
             [check.core :refer [check]]
-            [check.mocks :refer [mocking]]
             [js-cljs.core :refer [parse-str] :as core]))
 
 (deftest js-members
