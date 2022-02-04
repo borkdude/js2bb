@@ -1,6 +1,7 @@
 {:source-paths ["src" "test"]
 
- :dependencies [[check "0.2.1-SNAPSHOT"]]
+ :dependencies [[check "0.2.1-SNAPSHOT"]
+                [zprint "1.2.1"]]
 
  :builds {:node {:target :node-script
                  :main js-cljs.node/main

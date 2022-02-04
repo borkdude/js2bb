@@ -1,6 +1,6 @@
 (ns js-cljs.core
   (:require ["acorn" :refer [parse]]
-            ["zprint-clj" :as zprint]
+            [zprint.core :as zprint]
             [clojure.string :as str]))
 
 (defmulti parse-frag (fn [step _] (:type step)))
@@ -208,4 +208,4 @@
   ([code format-opts]
    (-> code
        parse-str
-       (zprint (clj->js format-opts)))))
+       (zprint/zprint-file-str "file: example.cljs" format-opts))))

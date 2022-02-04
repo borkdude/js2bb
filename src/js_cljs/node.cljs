@@ -15,4 +15,7 @@
 
 (defn main [ & args]
   (p/let [in (readlines)]
-    (println (parse-str in {:isHangEnabled true}))))
+    (println (parse-str in {:style [:community]
+                            :parse {:interpose "\n\n"}
+                            :width 60
+                            :pair {:nl-separator? true}}))))
