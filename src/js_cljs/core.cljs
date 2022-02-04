@@ -56,9 +56,11 @@
 (defmethod parse-frag "Identifier" [{:keys [name]} _] name)
 (defmethod parse-frag "CallExpression" [{:keys [callee arguments]} state]
   (let [callee (parse-frag callee (assoc state :single? true :special-js? true))
-        args (map #(parse-frag % (assoc state :single? true)) arguments)]
+        args (mapv #(parse-frag % (assoc state :single? true)) arguments)]
     (if (string? callee)
-      (str "(" (->> args (cons callee) (str/join " ")) ")")
+      (if (-> args peek vector?)
+        (str "(apply " (->> (update args (-> args count dec) peek) (cons callee) (str/join " ")) ")")
+        (str "(" (->> args (cons callee) (str/join " ")) ")"))
       (str "(." (second callee) " " (first callee) " " (str/join " " args)
            ")"))))
 
@@ -173,6 +175,9 @@
   [(parse-frag left (assoc state :single? true))
    (parse-frag right (assoc state :single? true))])
 
+(defmethod parse-frag "SpreadElement" [{:keys [argument]} state]
+  [(parse-frag argument)])
+
 (defmethod parse-frag :default [dbg state]
   (tap> dbg)
   (def t (:type dbg))
@@ -182,7 +187,7 @@
 #_
 (parse-str "a={a: 10, b: 20}")
 
-#_(from-js "a=1;b=2")
+#_(from-js "a(...b)")
 #_(from-js "function a({b}) {}")
 
 (defn- from-js [code]
