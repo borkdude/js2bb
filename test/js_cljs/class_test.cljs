@@ -46,3 +46,11 @@
 
   (testing "instantiating a class"
     (check (parse-str "new String(a)") => "(String. a)")))
+
+(deftest this
+  (testing "this outside classes"
+    (check (parse-str "this.f") => "(.-f (js* \"this\"))"))
+
+  (testing "and inside a class"
+    (check (parse-str "class A { constructor() { this.a }}")
+           => "(modern/defclass A (constructor [this] (.-a this)))")))

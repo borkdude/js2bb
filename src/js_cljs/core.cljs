@@ -221,14 +221,15 @@
 (defmethod parse-frag "ClassExpression" [props state] (class-declaration props state))
 
 (defmethod parse-frag "ClassBody" [{:keys [body]} state]
-  (reduce (fn [acc b]
-            (case (:kind b)
-              "constructor" (assoc acc :constructor (parse-frag b state))
-              "get" (assoc-in acc [:properties (-> b :key :name) :get] (parse-frag b state))
-              "set" (assoc-in acc [:properties (-> b :key :name) :set] (parse-frag b state))
-              (update acc :methods conj (parse-frag b state))))
-          {:methods []}
-          body))
+  (let [state (assoc state :js-class? true)]
+    (reduce (fn [acc b]
+              (case (:kind b)
+                "constructor" (assoc acc :constructor (parse-frag b state))
+                "get" (assoc-in acc [:properties (-> b :key :name) :get] (parse-frag b state))
+                "set" (assoc-in acc [:properties (-> b :key :name) :set] (parse-frag b state))
+                (update acc :methods conj (parse-frag b state))))
+            {:methods []}
+            body)))
 
 (defmethod parse-frag "MethodDefinition" [{:keys [key value]} state]
   (let [{:keys [params body]} value]
@@ -239,6 +240,11 @@
                    (str/join " "))
          "]" (some->> (parse-frag body state) not-empty (str " "))
          ")")))
+
+(defmethod parse-frag "ThisExpression" [_ state]
+  (if (:js-class? state)
+    "this"
+    "(js* \"this\")"))
 
 (defmethod parse-frag :default [dbg state]
   (tap> dbg)
