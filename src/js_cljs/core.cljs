@@ -246,6 +246,15 @@
     "this"
     "(js* \"this\")"))
 
+(defmethod parse-frag "TryStatement" [{:keys [block handler finalizer]} state]
+  (str "(try " (parse-frag block state)
+       (when handler
+         (str " (catch :default " (parse-frag (:param handler) state)
+              " " (parse-frag (:body handler) state) ")"))
+       (when finalizer
+         (str " (finally " (parse-frag finalizer state) ")"))
+       ")"))
+
 (defmethod parse-frag :default [dbg state]
   (tap> dbg)
   (def t (:type dbg))

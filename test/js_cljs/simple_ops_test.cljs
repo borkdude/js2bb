@@ -72,3 +72,9 @@
 
 (deftest multiple-commands
   (check (parse-str "a=1;b=2") => "(def a 1)\n(def b 2)"))
+
+(deftest try-catch
+  (check (parse-str "try { a } catch (e) { e }") => "(try a (catch :default e e))")
+  (check (parse-str "try { a } finally { e }") => "(try a (finally e))")
+  (check (parse-str "try { a } catch (b) { b } finally { e }")
+         => "(try a (catch :default b b) (finally e))"))
