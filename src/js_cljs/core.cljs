@@ -183,6 +183,37 @@
 (defmethod parse-frag "SpreadElement" [{:keys [argument]} state]
   [(parse-frag argument)])
 
+(defmethod parse-frag "ClassDeclaration" [{:keys [id, superClass, body]} state]
+  (swap! (:cljs-requires state) conj '[shadow.cljs.modern :as modern])
+  (let [class-name (parse-frag id state)
+        {:keys [constructor methods]} (parse-frag body state)
+        super (some-> superClass (parse-frag state))]
+    (str "(modern/defclass " class-name
+         (when super (str " (extends " super ")"))
+         " "
+         (if constructor constructor "(constructor [this])")
+         (when (seq methods)
+           (->> methods (cons " Object") (str/join " ")))
+         ")")))
+
+(defmethod parse-frag "ClassBody" [{:keys [body]} state]
+  (reduce (fn [acc b]
+            (case (:kind b)
+              "constructor" (assoc acc :constructor (parse-frag b state))
+              (update acc :methods conj (parse-frag b state))))
+          {:methods []}
+          body))
+
+(defmethod parse-frag "MethodDefinition" [{:keys [key value]} state]
+  (let [{:keys [params body]} value]
+    (str "(" (parse-frag key state)
+         " [" (->> params
+                   (map #(parse-frag % state))
+                   (cons "this")
+                   (str/join " "))
+         "]" (some->> (parse-frag body state) not-empty (str " "))
+         ")")))
+
 (defmethod parse-frag :default [dbg state]
   (tap> dbg)
   (def t (:type dbg))
@@ -206,7 +237,7 @@
   ([code]
    (-> code
        from-js
-       (parse-frag {})))
+       (parse-frag {:cljs-requires (atom [])})))
   ([code format-opts]
    (-> code
        parse-str

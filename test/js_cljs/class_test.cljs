@@ -14,3 +14,16 @@
   (check (parse-str "a(...b)") => "(apply a b)")
   (check (parse-str "a(h, ...b)") => "(apply a h b)"))
   ; (check (parse-str "function a(...b){}") => "(defn a [& b] (let [b (clj->js b)]))"))
+
+(deftest classes
+  (check (parse-str "class A {}")
+         => "(modern/defclass A (constructor [this]))")
+
+  (check (parse-str "class A extends B {}")
+         => "(modern/defclass A (extends B) (constructor [this]))")
+
+  (check (parse-str "class B {constructor(a) { a }}")
+         => "(modern/defclass B (constructor [this a] a))")
+
+  (check (parse-str "class B {constructor(a) {} foo(a, b) { a + b } bar() {}}")
+         => "(modern/defclass B (constructor [this a]) Object (foo [this a b] (+ a b)) (bar [this]))"))
