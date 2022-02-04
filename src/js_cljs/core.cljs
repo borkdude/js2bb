@@ -54,7 +54,8 @@
 
 (defmethod parse-frag "Literal" [{:keys [value]} _] value)
 (defmethod parse-frag "Identifier" [{:keys [name]} _] name)
-(defmethod parse-frag "CallExpression" [{:keys [callee arguments]} state]
+
+(defn- call-expr [{:keys [callee arguments]} state]
   (let [callee (parse-frag callee (assoc state :single? true :special-js? true))
         args (mapv #(parse-frag % (assoc state :single? true)) arguments)]
     (if (string? callee)
@@ -63,6 +64,9 @@
         (str "(" (->> args (cons callee) (str/join " ")) ")"))
       (str "(." (second callee) " " (first callee) " " (str/join " " args)
            ")"))))
+(defmethod parse-frag "CallExpression" [prop state] (call-expr prop state))
+(defmethod parse-frag "NewExpression" [props state]
+  (call-expr (update-in props [:callee :name] str ".") state))
 
 (defn- if-then-else [{:keys [test consequent alternate]} state]
   (if alternate

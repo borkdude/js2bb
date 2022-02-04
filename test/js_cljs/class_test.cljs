@@ -16,14 +16,18 @@
   ; (check (parse-str "function a(...b){}") => "(defn a [& b] (let [b (clj->js b)]))"))
 
 (deftest classes
-  (check (parse-str "class A {}")
-         => "(modern/defclass A (constructor [this]))")
+  (testing "instantiate class"
+    (check (parse-str "class A {}")
+           => "(modern/defclass A (constructor [this]))")
 
-  (check (parse-str "class A extends B {}")
-         => "(modern/defclass A (extends B) (constructor [this]))")
+    (check (parse-str "class A extends B {}")
+           => "(modern/defclass A (extends B) (constructor [this]))")
 
-  (check (parse-str "class B {constructor(a) { a }}")
-         => "(modern/defclass B (constructor [this a] a))")
+    (check (parse-str "class B {constructor(a) { a }}")
+           => "(modern/defclass B (constructor [this a] a))")
 
-  (check (parse-str "class B {constructor(a) {} foo(a, b) { a + b } bar() {}}")
-         => "(modern/defclass B (constructor [this a]) Object (foo [this a b] (+ a b)) (bar [this]))"))
+    (check (parse-str "class B {constructor(a) {} foo(a, b) { a + b } bar() {}}")
+           => "(modern/defclass B (constructor [this a]) Object (foo [this a b] (+ a b)) (bar [this]))"))
+
+  (testing "instantiating a class"
+    (check (parse-str "new String(a)") => "(String. a)")))
