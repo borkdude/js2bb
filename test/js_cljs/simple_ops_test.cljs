@@ -54,7 +54,10 @@
            => "(defn a [b c] (let [c (if (undefined? c) 1 c)] c))"))
 
   (testing "alternate definition of functions"
-    (check (parse-str "const a = (b) => b") => "(defn a [b] b)")))
+    (check (parse-str "const a = (b) => b") => "(defn a [b] b)"))
+
+  (testing "returning without anything"
+    (check (parse-str "function a (b) { return }") => "(defn a [b] (js* \"return\"))")))
 
 (deftest vars
   (testing "global vars"
@@ -74,6 +77,7 @@
   (check (parse-str "a=1;b=2") => "(def a 1)\n(def b 2)"))
 
 (deftest try-catch
+  (check (parse-str "throw e") => "(throw e)")
   (check (parse-str "try { a } catch (e) { e }") => "(try a (catch :default e e))")
   (check (parse-str "try { a } finally { e }") => "(try a (finally e))")
   (check (parse-str "try { a } catch (b) { b } finally { e }")

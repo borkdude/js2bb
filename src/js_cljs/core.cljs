@@ -119,7 +119,12 @@
 (defmethod parse-frag "ArrowFunctionExpression" [step state] (parse-fun step state))
 
 (defmethod parse-frag "ReturnStatement" [{:keys [argument]} state]
-  (parse-frag argument state))
+  (if argument
+    (parse-frag argument state)
+    "(js* \"return\")"))
+
+(defmethod parse-frag "ThrowStatement" [{:keys [argument]} state]
+  (str "(throw " (parse-frag argument state) ")"))
 
 (defmethod parse-frag "AssignmentExpression" [{:keys [operator left right]} state]
   (let [vars (parse-frag left (assoc state :single? true :special-js? true))
@@ -264,7 +269,7 @@
 #_
 (parse-str "const a = class B {}")
 
-#_(from-js "const a = class B {}")
+#_(from-js "throw e")
 #_(from-js "class B { get a() { return 10 } }")
 
 (defn- from-js [code]
