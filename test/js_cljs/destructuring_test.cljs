@@ -8,6 +8,10 @@
   (check (parse-str "a={a: 10, b: 20}") => "(def a #js {:a 10 :b 20})")
   (check (parse-str "[1, 2]") => "#js [1 2]"))
 
+(deftest js-arrays
+  (check (parse-str "a[0]") => "(nth a 0)")
+  (check (parse-str "a[0] = 1") => "(aset a 0 1)"))
+
 (deftest destructuring-maps-on-def
   (testing "simple destructuring"
     (check (parse-str "const {a} = {a: 10}")

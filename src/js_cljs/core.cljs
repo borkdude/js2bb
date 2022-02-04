@@ -129,9 +129,11 @@
 (defmethod parse-frag "AssignmentExpression" [{:keys [operator left right]} state]
   (let [vars (parse-frag left (assoc state :single? true :special-js? true))
         val (parse-frag right (assoc state :single? true))]
-    (if (string? vars)
-      (str "(def " vars " " val ")")
-      (str "(aset " (first vars) " " (-> vars second pr-str) " " val ")"))))
+    (if (= "=" operator)
+      (if (string? vars)
+        (str "(def " vars " " val ")")
+        (str "(aset " (first vars) " " (-> vars second pr-str) " " val ")"))
+      (str "(js* ~{} " operator " ~{} " vars " " val ")"))))
 
 (defn- make-destr-def [[k v] val]
   (str "(def " k " (.-" v " " val "))"))
@@ -176,10 +178,13 @@
    (parse-frag value (assoc state :single? true))])
 
 (defmethod parse-frag "MemberExpression" [{:keys [object property]} state]
-  (if (:special-js? state)
-    [(parse-frag object state) (parse-frag property state)]
-    (str "(.-" (parse-frag property state)
-         " " (parse-frag object state) ")")))
+  (let [obj (parse-frag object state)
+        prop (parse-frag property state)]
+    (if (:special-js? state)
+      [obj prop]
+      (if (number? prop)
+        (str "(nth " obj " " prop ")")
+        (str "(.-" prop " " obj ")")))))
 
 (defmethod parse-frag "ObjectPattern" [{:keys [properties]} state]
   (mapv #(parse-frag % (assoc state :single? true))
@@ -260,6 +265,11 @@
          (str " (finally " (parse-frag finalizer state) ")"))
        ")"))
 
+(defmethod parse-frag "UpdateExpression" [{:keys [operator prefix argument]} state]
+  (if prefix
+    (str "(js* "operator "~{} " (parse-frag argument (assoc state :single? true)) ")")
+    (str "(js* ~{}" operator " " (parse-frag argument (assoc state :single? true)) ")")))
+
 (defmethod parse-frag :default [dbg state]
   (tap> dbg)
   (def t (:type dbg))
@@ -267,9 +277,9 @@
                   {:element (:type dbg)})))
 
 #_
-(parse-str "const a = class B {}")
+(parse-str "a++")
 
-#_(from-js "throw e")
+#_(from-js "a+=1")
 #_(from-js "class B { get a() { return 10 } }")
 
 (defn- from-js [code]
