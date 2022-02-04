@@ -137,7 +137,9 @@
                        (let [sym (random-identifier)
                              inner (map #(make-destr-def % sym) k)]
                          (str "(let [" sym " " v "] " (str/join " " inner) ")")))
-                     (str "(def " k " " v ")")))]
+                     (if (and (string? v) (str/starts-with? v "(fn "))
+                       (str "(defn " k " " (subs v 4))
+                       (str "(def " k " " v ")"))))]
         (str/join " " defs)))))
 
 (defmethod parse-frag "VariableDeclarator" [{:keys [id init]} state]
@@ -190,7 +192,7 @@
 #_
 (parse-str "a={a: 10, b: 20}")
 
-#_(from-js "a(...b)")
+#_(from-js "const a = (a) => {a+1}")
 #_(from-js "function a({b}) {}")
 
 (defn- from-js [code]

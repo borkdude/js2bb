@@ -40,6 +40,8 @@
   (testing "anon functions"
     (check (parse-str "(function(a, b) { return a + b})(1, 2)")
            => "((fn [a b] (+ a b)) 1 2)")
+    (check (parse-str "(function f (a, b) { return a + b})(1, 2)")
+           => "((fn f [a b] (+ a b)) 1 2)")
     (check (parse-str "(function lol (a, b) { return a + b})(1, 2)")
            => "((fn lol [a b] (+ a b)) 1 2)")
     (check (parse-str "((a, b) => a+b)(1, 2)")
@@ -49,7 +51,10 @@
 
   (testing "default options"
     (check (parse-str "function a(b, c=1){c}")
-           => "(defn a [b c] (let [c (if (undefined? c) 1 c)] c))")))
+           => "(defn a [b c] (let [c (if (undefined? c) 1 c)] c))"))
+
+  (testing "alternate definition of functions"
+    (check (parse-str "const a = (b) => b") => "(defn a [b] b)")))
 
 (deftest vars
   (testing "global vars"
