@@ -64,7 +64,7 @@
       (str "(." (second callee) " " (first callee) " " (str/join " " args)
            ")"))))
 
-(defmethod parse-frag "IfStatement" [{:keys [test consequent alternate]} state]
+(defn- if-then-else [{:keys [test consequent alternate]} state]
   (if alternate
     (str "(if "
          (parse-frag test (assoc state :single? true))
@@ -75,6 +75,9 @@
          (parse-frag test (assoc state :single? true))
          " " (parse-frag consequent state)
          ")")))
+
+(defmethod parse-frag "IfStatement" [element state] (if-then-else element state))
+(defmethod parse-frag "ConditionalExpression" [element state] (if-then-else element state))
 
 (defn- random-identifier [] (gensym "-temp-"))
 (defn- to-obj-params [fun param]
