@@ -7,7 +7,10 @@
   (check (parse-str "a.b") => "(.-b a)")
   (check (parse-str "a.b(1)") => "(.b a 1)")
   (check (parse-str "a.b = 1") => "(aset a \"b\" 1)")
-  (check (parse-str "(()=> {a.b = 1})()") => "((fn [] (aset a \"b\" 1)))"))
+  (check (parse-str "(()=> {a.b = 1})()") => "((fn [] (aset a \"b\" 1)))")
+
+  (check (parse-str "a[b-1]") => "(aget a (- b 1))")
+  (check (parse-str "a[b-1] = 1") => "(aset a (- b 1) 1)"))
 
 (deftest spread-op
   (check (parse-str "a(...b)") => "(apply a b)")

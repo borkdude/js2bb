@@ -60,12 +60,11 @@
 (defmethod parse-frag "LogicalExpression" [step state] (binary-exp step state))
 
 (defmethod parse-frag "Literal" [{:keys [value regex] :as p} _]
-  (cond
-    regex (if-let [flags (-> regex :flags not-empty)]
-            (str "#" (pr-str (str "(?" flags ")"(:pattern regex))))
-            (str "#" (pr-str (:pattern regex))))
-    (nil? value) "nil"
-    :else value))
+  (if regex
+    (if-let [flags (-> regex :flags not-empty)]
+      (str "#" (pr-str (str "(?" flags ")"(:pattern regex))))
+      (str "#" (pr-str (:pattern regex))))
+    (pr-str value)))
 
 (defmethod parse-frag "Identifier" [{:keys [name]} _] name)
 
@@ -173,12 +172,24 @@
 
 (defmethod parse-frag "AssignmentExpression" [{:keys [operator left right]} state]
   (let [vars (parse-frag left (assoc state :single? true :special-js? true))
-        val (parse-frag right (assoc state :single? true))]
-    (if (= "=" operator)
-      (if (string? vars)
-        (str "(def " vars " " val ")")
-        (str "(aset " (first vars) " " (-> vars second pr-str) " " val ")"))
-      (str "(js* " (pr-str (str "~{} " operator " ~{}")) " " vars " " val ")"))))
+        val (parse-frag right (assoc state :single? true))
+        attr (-> vars second str delay)]
+
+    (cond
+      (not= "=" operator)
+      (str "(js* " (pr-str (str "~{} " operator " ~{}")) " " vars " " val ")")
+
+      (string? vars)
+      (str "(def " vars " " val ")")
+
+      (re-matches #"\"?\d+\"?" @attr)
+      (str "(aset " (first vars) " " (js/parseInt @attr) " " val ")")
+
+      (re-find #"[^a-zA-Z_]" @attr)
+      (str "(aset " (first vars) " " @attr " " val ")")
+
+      :else
+      (str "(aset " (first vars) " " (pr-str @attr) " " val ")"))))
 
 (defn- make-destr-def [[k v] val]
   (str "(def " k " (.-" v " " val "))"))
@@ -229,9 +240,10 @@
         prop (parse-frag property state)]
     (if (:special-js? state)
       [obj prop]
-      (if (number? prop)
-        (str "(nth " obj " " prop ")")
-        (str "(.-" prop " " obj ")")))))
+      (cond
+        (re-matches #"\"?\d+\"?" prop) (str "(nth " obj " " (js/parseInt prop) ")")
+        (re-find #"[^a-zA-Z_]" prop) (str "(aget " obj " " prop ")")
+        :else (str "(.-" prop " " obj ")")))))
 
 (defmethod parse-frag "ObjectPattern" [{:keys [properties]} state]
   (mapv #(parse-frag % (assoc state :single? true))
@@ -375,5 +387,5 @@
        (parse-frag {:cljs-requires (atom [])})))
   ([code format-opts]
    (-> code
-       parse-str)))
-       ; (zprint/zprint-file-str "file: example.cljs" format-opts))))
+       parse-str
+       (zprint/zprint-file-str "file: example.cljs" format-opts))))
