@@ -107,9 +107,8 @@
 (defn- to-default-param [[fun default]]
   [fun (str "(if (undefined? " fun ") " default " " fun ")")])
 
-(defmethod parse-frag "FunctionDeclaration" [{:keys [id params body]} state]
+(defn- normalize-params [params state]
   (let [params (map #(parse-frag % state) params)
-        body (parse-frag body (assoc state :single? false))
         params-detailed (for [param params]
                           (if (vector? param)
                             (if (-> param first vector?)
@@ -117,12 +116,17 @@
                                 {:fun id :extracts-to (to-obj-params id param)})
                               {:fun (first param) :extracts-to (to-default-param param)})
                             {:fun param}))
-        let-params (->> params-detailed (mapcat :extracts-to) (filter identity))
-        norm-body (if (seq let-params)
-                    (str "(let [" (str/join " " let-params) "] " body ")")
+        let-params (->> params-detailed (mapcat :extracts-to) (filter identity))]
+    {:params (->> params-detailed (map :fun) (str/join " "))
+     :lets (when (seq let-params) (str/join " " let-params))}))
+
+(defmethod parse-frag "FunctionDeclaration" [{:keys [id params body]} state]
+  (let [body (parse-frag body (assoc state :single? false))
+        {:keys [params lets]} (normalize-params params state)
+        norm-body (if lets
+                    (str "(let [" lets "] " body ")")
                     body)]
-    (str "(defn " (parse-frag id state)
-         " [" (->> params-detailed (map :fun) (str/join " ")) "] " norm-body ")")))
+    (str "(defn " (parse-frag id state) " [" params "] " norm-body ")")))
 
 (defn- parse-fun [{:keys [id params body]} state]
   (let [params (->> params (map #(parse-frag % state)) (str/join " "))
@@ -301,13 +305,16 @@
             body)))
 
 (defmethod parse-frag "MethodDefinition" [{:keys [key value]} state]
-  (let [{:keys [params body]} value]
+  (let [{:keys [params body]} value
+        {:keys [lets params]} (normalize-params params state)
+        body (some->> (parse-frag body state) not-empty (str " "))
+        norm-body (if lets
+                    (str " (let [" lets "]" body ")")
+                    body)]
     (str "(" (parse-frag key state)
-         " [" (->> params
-                   (map #(parse-frag % state))
-                   (cons "this")
-                   (str/join " "))
-         "]" (some->> (parse-frag body state) not-empty (str " "))
+         " [this" (cond->> params (seq params) (str " "))
+         "]"
+         norm-body
          ")")))
 
 (defmethod parse-frag "ThisExpression" [_ state]

@@ -1,6 +1,7 @@
 (ns js-cljs.class-test
   (:require [clojure.test :refer [deftest testing]]
             [check.core :refer [check]]
+            [check.mocks :refer [mocking]]
             [js-cljs.core :refer [parse-str] :as core]))
 
 (deftest js-members
@@ -16,7 +17,7 @@
   (check (parse-str "a(...b)") => "(apply a b)")
   (check (parse-str "a(h, ...b)") => "(apply a h b)")
   (check (parse-str "a(h, ...b, c)") => "(apply a h (concat b [c]))")
-  ; (check (parse-str "function a(...b){}") => "(defn a [& b] (let [b (clj->js b)]))"))
+  ; (check (parse-str "function a(...b){}") => "(defn a [& b] (let [b (clj->js b)]))")
 
   (check (parse-str "function a(...b) {}")
          => "(defn a [& b] )"))
@@ -51,7 +52,14 @@
            => (str "(def a (modern/defclass B (constructor [this])))")))
 
   (testing "instantiating a class"
-    (check (parse-str "new String(a)") => "(String. a)")))
+     (check (parse-str "new String(a)") => "(String. a)"))
+
+  (testing "destructuring on methods"
+    (mocking
+     (core/random-identifier) => "--c"
+     ---
+     (check (parse-str "class A { constructor({a}) { a }}")
+            => "(modern/defclass A (constructor [this --c] (let [a (.-a --c)] a)))"))))
 
 (deftest this
   (testing "this outside classes"
