@@ -64,10 +64,14 @@
 
 (defn- call-expr [{:keys [callee arguments]} state]
   (let [callee (parse-frag callee (assoc state :single? true :special-js? true))
-        args (mapv #(parse-frag % (assoc state :single? true)) arguments)]
+        args (mapv #(parse-frag % (assoc state :single? true)) arguments)
+        [non-rest [[fst] & rst]] (split-with (complement vector?) args)
+        rest (cond
+               (seq rst) [(str "(concat " fst " [" (str/join " " rst) "])")]
+               fst [fst])]
     (if (string? callee)
-      (if (-> args peek vector?)
-        (str "(apply " (->> (update args (-> args count dec) peek) (cons callee) (str/join " ")) ")")
+      (if rest
+        (str "(apply " (str/join " " (concat [callee] non-rest rest)) ")")
         (str "(" (->> args (cons callee) (str/join " ")) ")"))
       (str "(." (second callee) " " (first callee) " " (str/join " " args)
            ")"))))
@@ -186,6 +190,8 @@
                        (str "(defn " k " " (subs v 4))
                        (str "(def " k " " v ")"))))]
         (str/join " " defs)))))
+
+(defmethod parse-frag "ContinueStatement" [_ _] "(js* \"continue\")")
 
 (defmethod parse-frag "VariableDeclarator" [{:keys [id init]} state]
   (let [vars (:locals state)
@@ -314,6 +320,17 @@
       (str (parse-frag test state) " " body)
       body)))
 
+(defmethod parse-frag "ArrayPattern" [{:keys [elements]} state]
+  (str "["
+       (->> elements
+            (map #(parse-frag % (assoc state :single? true)))
+            (str/join " "))
+       "]"))
+
+(defmethod parse-frag "WhileStatement" [{:keys [test body]} state]
+  (str "(while " (parse-frag test (assoc state :single? true))
+       " " (parse-frag body (assoc state :single? false))
+       ")"))
 (defmethod parse-frag "BreakStatement" [_ _] nil)
 
 (defmethod parse-frag "UpdateExpression" [{:keys [operator prefix argument]} state]
@@ -331,7 +348,7 @@
 #_
 (parse-str "a++")
 
-#_(from-js "let a = 1")
+#_(from-js "a(h, ...b, c)")
 #_(from-js "class B { get a() { return 10 } }")
 
 (defn- from-js [code]

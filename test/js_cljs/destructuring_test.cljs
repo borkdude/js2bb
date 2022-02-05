@@ -24,6 +24,22 @@
      (check (parse-str "const {a, b} = {a: 10}")
             => "(let [--cache #js {:a 10}] (def a (.-a --cache)) (def b (.-b --cache)))"))))
 
+; (deftest destructuring-vector-on-def
+;   (mocking
+;    (core/random-identifier) => "--cache"
+;    ---
+;    (testing "simple destructuring"
+;      (check (parse-str "const [a, b] = c")
+;             => "(let [--cache c] (def a (nth --cache 0)) (def b (nth --cache 1)))"))))
+
+(deftest destructuring-vector-on-function
+  (mocking
+   (core/random-identifier) => "--cache"
+   ---
+   (testing "simple destructuring"
+     (check (parse-str "function f([a, b]) {}")
+            => "(defn f [[a b]] )"))))
+
 (deftest destructuring-maps-on-function
   (mocking
    (core/random-identifier) => "--cache"

@@ -33,6 +33,9 @@
     ; (check (parse-str "for(var {i} in b) { a(i) }")
     ;        => "(doseq [i (js/Object.keys b)] (a i))")))
 
+(deftest while-loops
+  (check (parse-str "while(true) {a(1)}") => "(while true (a 1))"))
+
 (deftest template-literals
   (testing "interpolated-strings"
     (check (parse-str "`a${b}c${d}e${f}`")
@@ -41,3 +44,6 @@
            => "(modern/js-template \"a\" b \"c\" d \"e\" f \"g\")")
     (check (parse-str "foo`a${b}c`")
            => "(modern/js-template foo \"a\" b \"c\")")))
+
+; (deftest flow-keywords
+;   (check (parse-str "continue") => "(js* \"continue\")"))
