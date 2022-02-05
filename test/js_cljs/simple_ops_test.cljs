@@ -19,7 +19,11 @@
     (check (parse-str "a < b") => "(< a b)"))
 
   (testing "fn call"
-    (check (parse-str "foo(a, b)") => "(foo a b)")))
+    (check (parse-str "foo(a, b)") => "(foo a b)"))
+
+  (testing "regexp"
+    (check (parse-str "let a = /asdf/") => "(def a #\"asdf\")")
+    (check (parse-str "let a = /asdf/i") => "(def a #\"(?i)asdf\")")))
 
 (deftest functions
   (testing "named functions"

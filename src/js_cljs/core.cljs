@@ -59,7 +59,12 @@
 (defmethod parse-frag "BinaryExpression" [step state] (binary-exp step state))
 (defmethod parse-frag "LogicalExpression" [step state] (binary-exp step state))
 
-(defmethod parse-frag "Literal" [{:keys [value]} _] value)
+(defmethod parse-frag "Literal" [{:keys [value regex]} _]
+  (if regex
+    (if-let [flags (-> regex :flags not-empty)]
+      (str "#" (pr-str (str "(?" flags ")"(:pattern regex))))
+      (str "#" (pr-str (:pattern regex))))
+    value))
 (defmethod parse-frag "Identifier" [{:keys [name]} _] name)
 
 (defn- call-expr [{:keys [callee arguments]} state]
@@ -351,7 +356,7 @@
 #_
 (parse-str "a++")
 
-#_(from-js "a(h, ...b, c)")
+#_(from-js "let a = /asdf/")
 #_(from-js "class B { get a() { return 10 } }")
 
 (defn- from-js [code]
@@ -368,5 +373,5 @@
        (parse-frag {:cljs-requires (atom [])})))
   ([code format-opts]
    (-> code
-       parse-str
-       (zprint/zprint-file-str "file: example.cljs" format-opts))))
+       parse-str)))
+       ; (zprint/zprint-file-str "file: example.cljs" format-opts))))
