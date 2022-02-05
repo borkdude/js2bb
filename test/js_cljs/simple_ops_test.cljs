@@ -55,9 +55,9 @@
     (check (parse-str "let a = 10") => "(def a 10)")
     (check (parse-str "var a = 10") => "(def a 10)")
 
-    (check (parse-str "a++") => "(js* ~{}++ a)")
-    (check (parse-str "--a") => "(js* --~{} a)")
-    (check (parse-str "a+=1") => "(js* ~{} += ~{} a 1)"))
+    (check (parse-str "a++") => "(js* \"~{}++\" a)")
+    (check (parse-str "--a") => "(js* \"--~{}\" a)")
+    (check (parse-str "a+=1") => "(js* \"~{} += ~{}\" a 1)"))
 
   (testing "multiple global vars"
     (check (parse-str "const a = 10, b=20") => "(def a 10) (def b 20)"))

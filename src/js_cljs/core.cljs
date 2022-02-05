@@ -5,12 +5,11 @@
 
 (defmulti parse-frag (fn [step _] (:type step)))
 
-(defn- block [step state sep]
-  (let [ops (map #(parse-frag % state) (:body step))
-        body (->> (:body step)
-                  (map #(parse-frag % state))
-                  (remove nil?)
-                  (str/join sep))
+(defn- block [bodies state sep]
+  (let [ops (->> bodies
+                 (map #(parse-frag % state))
+                 (remove nil?))
+        body (str/join sep ops)
         locals (:locals state)]
     (cond
       (and locals (seq @locals)) (str "(let [" (str/join " " (mapcat identity @locals)) "] " body ")")
@@ -18,13 +17,21 @@
       :else (str "(do " body ")"))))
 
 (defmethod parse-frag "Program" [step state]
-  (block step (assoc state :root? true) "\n"))
+  (block (:body step) (assoc state :root? true) "\n"))
 
 (defmethod parse-frag "BlockStatement" [step state]
-  (block step (assoc state :root? false :locals (atom [])) " "))
+  (block (:body step) (assoc state :root? false :locals (atom [])) " "))
 
 (defmethod parse-frag "ExpressionStatement" [step state]
   (parse-frag (:expression step) state))
+
+(defmethod parse-frag "ForStatement" [{:keys [init test update body]} state]
+  (let [[id val] (parse-frag (-> init :declarations first) (assoc state :root? false))]
+    (str "(let [" id " " val
+         "] (while " (parse-frag test (assoc state :single? true))
+         " " (block (:body body) (assoc state :single? false) " ")
+         " " (parse-frag update (assoc state :single? false))
+         "))")))
 
 (defn- get-operator [operator]
   (case operator
@@ -128,6 +135,28 @@
        " " (parse-frag right (assoc state :single? true))
        "] " (parse-frag body (assoc state :single? false)) ")"))
 
+(defmethod parse-frag "ForInStatement" [{:keys [left right body]} state]
+  (str "(doseq [" (-> left :declarations first :id :name)
+       " (js/Object.keys " (parse-frag right (assoc state :single? true))
+       ")] " (parse-frag body (assoc state :single? false)) ")"))
+
+(defn- template-lit [tag {:keys [expressions quasis]} state]
+  (swap! (:cljs-requires state) conj '[shadow.cljs.modern :as modern])
+  (let [state (assoc state :single? true)
+        elems (interleave quasis expressions)
+        parsed (mapv #(parse-frag % state) elems)
+        last (-> quasis peek (parse-frag state))
+        parsed (cond-> parsed (not= last "\"\"") (conj last))]
+    (str "(modern/js-template " (when tag (str (parse-frag tag state) " "))
+         (str/join " " parsed) ")")))
+
+(defmethod parse-frag "TaggedTemplateExpression" [{:keys [tag quasi]} state]
+  (template-lit tag quasi state))
+(defmethod parse-frag "TemplateLiteral" [prop state]
+  (template-lit nil prop state))
+
+(defmethod parse-frag "TemplateElement" [{:keys [value]} _] (pr-str (:cooked value)))
+
 (defmethod parse-frag "ThrowStatement" [{:keys [argument]} state]
   (str "(throw " (parse-frag argument state) ")"))
 
@@ -138,7 +167,7 @@
       (if (string? vars)
         (str "(def " vars " " val ")")
         (str "(aset " (first vars) " " (-> vars second pr-str) " " val ")"))
-      (str "(js* ~{} " operator " ~{} " vars " " val ")"))))
+      (str "(js* " (pr-str (str "~{} " operator " ~{}")) " " vars " " val ")"))))
 
 (defn- make-destr-def [[k v] val]
   (str "(def " k " (.-" v " " val "))"))
@@ -270,10 +299,28 @@
          (str " (finally " (parse-frag finalizer state) ")"))
        ")"))
 
+(defmethod parse-frag "SwitchStatement" [{:keys [discriminant cases]} state]
+  (let [state (assoc state :single? true)
+        test (parse-frag discriminant state)
+        cases (map #(parse-frag % state) cases)]
+    (str "(case " test
+         " " (str/join " " cases)
+         ")")))
+
+(defmethod parse-frag "SwitchCase" [{:keys [test consequent]} state]
+  (def c (if (nil? c) consequent c))
+  (let [body (block consequent state " ")]
+    (if test
+      (str (parse-frag test state) " " body)
+      body)))
+
+(defmethod parse-frag "BreakStatement" [_ _] nil)
+
 (defmethod parse-frag "UpdateExpression" [{:keys [operator prefix argument]} state]
-  (if prefix
-    (str "(js* "operator "~{} " (parse-frag argument (assoc state :single? true)) ")")
-    (str "(js* ~{}" operator " " (parse-frag argument (assoc state :single? true)) ")")))
+  (let [macro (if prefix
+                (str operator "~{}")
+                (str "~{}" operator))]
+    (str "(js* " (pr-str macro) " " (parse-frag argument (assoc state :single? true)) ")")))
 
 (defmethod parse-frag :default [dbg state]
   (tap> dbg)
@@ -284,7 +331,7 @@
 #_
 (parse-str "a++")
 
-#_(from-js "a+=1")
+#_(from-js "let a = 1")
 #_(from-js "class B { get a() { return 10 } }")
 
 (defn- from-js [code]
