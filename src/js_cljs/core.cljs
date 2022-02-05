@@ -333,6 +333,9 @@
        ")"))
 (defmethod parse-frag "BreakStatement" [_ _] nil)
 
+(defmethod parse-frag "RestElement" [{:keys [argument]} state]
+  (str "& " (parse-frag argument (assoc state :single? true))))
+
 (defmethod parse-frag "UpdateExpression" [{:keys [operator prefix argument]} state]
   (let [macro (if prefix
                 (str operator "~{}")

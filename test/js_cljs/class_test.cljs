@@ -12,8 +12,11 @@
 (deftest spread-op
   (check (parse-str "a(...b)") => "(apply a b)")
   (check (parse-str "a(h, ...b)") => "(apply a h b)")
-  (check (parse-str "a(h, ...b, c)") => "(apply a h (concat b [c]))"))
+  (check (parse-str "a(h, ...b, c)") => "(apply a h (concat b [c]))")
   ; (check (parse-str "function a(...b){}") => "(defn a [& b] (let [b (clj->js b)]))"))
+
+  (check (parse-str "function a(...b) {}")
+         => "(defn a [& b] )"))
 
 (deftest classes
   (testing "instantiate class"
