@@ -3,7 +3,8 @@
 
             [js-cljs.simple-ops-test]
             [js-cljs.destructuring-test]
-            [js-cljs.class-test]))
+            [js-cljs.class-test]
+            [js-cljs.keywords-test]))
 
 (defn ^:dev/after-load run-tests []
   (test/run-all-tests #"js-cljs.*-test"))
