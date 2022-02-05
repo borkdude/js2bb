@@ -59,12 +59,14 @@
 (defmethod parse-frag "BinaryExpression" [step state] (binary-exp step state))
 (defmethod parse-frag "LogicalExpression" [step state] (binary-exp step state))
 
-(defmethod parse-frag "Literal" [{:keys [value regex]} _]
-  (if regex
-    (if-let [flags (-> regex :flags not-empty)]
-      (str "#" (pr-str (str "(?" flags ")"(:pattern regex))))
-      (str "#" (pr-str (:pattern regex))))
-    value))
+(defmethod parse-frag "Literal" [{:keys [value regex] :as p} _]
+  (cond
+    regex (if-let [flags (-> regex :flags not-empty)]
+            (str "#" (pr-str (str "(?" flags ")"(:pattern regex))))
+            (str "#" (pr-str (:pattern regex))))
+    (nil? value) "nil"
+    :else value))
+
 (defmethod parse-frag "Identifier" [{:keys [name]} _] name)
 
 (defn- call-expr [{:keys [callee arguments]} state]

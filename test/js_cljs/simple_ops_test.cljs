@@ -23,7 +23,10 @@
 
   (testing "regexp"
     (check (parse-str "let a = /asdf/") => "(def a #\"asdf\")")
-    (check (parse-str "let a = /asdf/i") => "(def a #\"(?i)asdf\")")))
+    (check (parse-str "let a = /asdf/i") => "(def a #\"(?i)asdf\")"))
+
+  (testing "some primitives"
+    (check (parse-str "null") => "nil")))
 
 (deftest functions
   (testing "named functions"
