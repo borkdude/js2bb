@@ -3,7 +3,9 @@
             [zprint.core :as zprint]
             [clojure.string :as str]))
 
-(defmulti parse-frag (fn [step _] (:type step)))
+(defmulti parse-frag (fn [step state]
+                       (when (and step (:debug state)) (reset! (:debug state) step))
+                       (:type step)))
 
 (defn- block [bodies state sep]
   (let [ops (->> bodies
@@ -26,12 +28,17 @@
   (parse-frag (:expression step) state))
 
 (defmethod parse-frag "ForStatement" [{:keys [init test update body]} state]
-  (let [[id val] (parse-frag (-> init :declarations first) (assoc state :root? false))]
-    (str "(let [" id " " val
-         "] (while " (parse-frag test (assoc state :single? true))
+  (let [[id val] (when init (parse-frag (-> init :declarations first) (assoc state :root? false)))
+        test (if test
+               (parse-frag test (assoc state :single? true))
+               "true")]
+    (str (when init
+           (str "(let [" id " " val "] "))
+         "(while " test
          " " (block (:body body) (assoc state :single? false) " ")
-         " " (parse-frag update (assoc state :single? false))
-         "))")))
+         (when update (str " " (parse-frag update (assoc state :single? false))))
+         ")"
+         (when init ")"))))
 
 (defn- get-operator [operator]
   (case operator
@@ -258,7 +265,7 @@
    (parse-frag right (assoc state :single? true))])
 
 (defmethod parse-frag "SpreadElement" [{:keys [argument]} state]
-  [(parse-frag argument)])
+  [(parse-frag argument state)])
 
 (defn- gen-properties [class [property {:keys [get set]}]]
   (str "(.defineProperty js/Object (.-prototype " class
@@ -357,6 +364,7 @@
   (str "(while " (parse-frag test (assoc state :single? true))
        " " (parse-frag body (assoc state :single? false))
        ")"))
+
 (defmethod parse-frag "BreakStatement" [_ _] nil)
 
 (defmethod parse-frag "RestElement" [{:keys [argument]} state]
@@ -391,8 +399,9 @@
   ([code]
    (-> code
        from-js
-       (parse-frag {:cljs-requires (atom [])})))
-  ([code format-opts]
+       (parse-frag {:cljs-requires (atom []) :debug (atom nil)})))
+  ([code opts]
    (-> code
-       parse-str
-       (zprint/zprint-file-str "file: example.cljs" format-opts))))
+       from-js
+       (parse-frag (assoc (:format-opts opts) :cljs-requires (atom [])))
+       (zprint/zprint-file-str "file: example.cljs" (:zprint-opts opts)))))

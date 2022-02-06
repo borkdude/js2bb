@@ -71,7 +71,9 @@
 
   (testing "local vars"
     (check (parse-str "function a() { const a=1,b=2; a+b }")
-           => "(defn a [] (let [a 1 b 2] (+ a b)))")))
+           => "(defn a [] (let [a 1 b 2] (+ a b)))")
+    (check (parse-str "function a() { var a }")
+           => "(defn a [] (let [a nil] ))")))
 
 (deftest multiple-commands
   (check (parse-str "a=1;b=2") => "(def a 1)\n(def b 2)"))
