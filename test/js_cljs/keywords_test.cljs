@@ -20,6 +20,12 @@
 
 (deftest for-loops
   (testing "for ;;"
+    (check (parse-str "for(;;) { a(i) }") => "(while true (a i))")
+    (check (parse-str "for(let i=0; ; i++) { a(i) }")
+           => "(let [i 0] (while true (a i) (js* \"~{}++\" i)))")
+    (check (parse-str "for(let i=0; ; i++) { a(i) }")
+           => "(let [i 0] (while true (a i) (js* \"~{}++\" i)))")
+
     (check (parse-str "for(let i=0; i < 10; i++) { a(i) }")
            => "(let [i 0] (while (< i 10) (a i) (js* \"~{}++\" i)))"))
 
