@@ -52,12 +52,12 @@
     operator))
 
 (defn- binary-exp [{:keys [left right operator]} state]
-  (let [operator (get-operator operator)]
-    (str "("
-         operator
-         " " (parse-frag left (assoc state :single? true))
-         " " (parse-frag right (assoc state :single? true))
-         ")")))
+  (let [state (assoc state :single? true)
+        left (parse-frag left state)
+        right (parse-frag right state)]
+    (if (= operator "??")
+      (str "(if (some? " left ") " left " " right ")")
+      (str "(" (get-operator operator) " " left " " right ")"))))
 
 (defmethod parse-frag "UnaryExpression" [{:keys [operator argument]} state]
   (let [operator (get-operator operator)]

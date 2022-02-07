@@ -12,6 +12,7 @@
     (check (parse-str "!a") => "(not a)")
     (check (parse-str "a && b") => "(and a b)")
     (check (parse-str "a || b") => "(or a b)")
+    (check (parse-str "a ?? 20") => "(if (some? a) a 20)")
     (check (parse-str "a == b") => "(= a b)")
     (check (parse-str "a === b") => "(= a b)")
     (check (parse-str "a != b") => "(not= a b)")
