@@ -8,9 +8,9 @@ pages:
   stage: deploy
   script:
     - apk add --no-cache openjdk11
-    artifacts:
-      paths:
-        - public
+  artifacts:
+    paths:
+      - public
   rules:
     - if: '$CI_COMMIT_BRANCH == "master"'
 
