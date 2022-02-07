@@ -405,13 +405,13 @@
 
 (defn parse-str
   ([code]
-   (let [reqs (atom [])]
+   (let [reqs (atom #{})]
      (-> code
          from-js
          (parse-frag {:cljs-requires reqs :debug (atom nil)})
          (add-requires @reqs))))
   ([code opts]
-   (let [reqs (atom [])]
+   (let [reqs (atom #{})]
      (-> code
          from-js
          (parse-frag (assoc (:format-opts opts) :cljs-requires reqs))
