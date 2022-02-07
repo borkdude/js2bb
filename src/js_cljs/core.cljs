@@ -162,7 +162,8 @@
        ")] " (parse-frag body (assoc state :single? false)) ")"))
 
 (defn- template-lit [tag {:keys [expressions quasis]} state]
-  (swap! (:cljs-requires state) conj '[shadow.cljs.modern :as modern])
+  (when tag
+    (swap! (:cljs-requires state) conj '[shadow.cljs.modern :as modern]))
   (let [state (assoc state :single? true)
         elems (interleave quasis expressions)
         parsed (mapv #(parse-frag % state) elems)
@@ -397,15 +398,24 @@
       js/JSON.parse
       (js->clj :keywordize-keys true)))
 
+(defn- add-requires [code requires]
+  (cond->> code
+    (seq requires)
+    (str "(ns your.ns (:require " (str/join " " requires) ")) ")))
+
 (defn parse-str
   ([code]
-   (-> code
-       from-js
-       (parse-frag {:cljs-requires (atom []) :debug (atom nil)})))
+   (let [reqs (atom [])]
+     (-> code
+         from-js
+         (parse-frag {:cljs-requires reqs :debug (atom nil)})
+         (add-requires @reqs))))
   ([code opts]
-   (-> code
-       from-js
-       (parse-frag (assoc (:format-opts opts) :cljs-requires (atom [])))
-       (cond->
-         (-> opts :zprint-opts :disable not)
-         (zprint/zprint-file-str "file: example.cljs" (:zprint-opts opts))))))
+   (let [reqs (atom [])]
+     (-> code
+         from-js
+         (parse-frag (assoc (:format-opts opts) :cljs-requires reqs))
+         (add-requires @reqs)
+         (cond->
+           (-> opts :zprint-opts :disable not)
+           (zprint/zprint-file-str "file: example.cljs" (:zprint-opts opts)))))))

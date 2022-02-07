@@ -10,7 +10,7 @@
     (check (parse-str "a[b]") => "(aget a b)")
     (check (parse-str "a[0]") => "(nth a 0)")
     (check (parse-str "a[\"1b\"]") => "(aget a \"1b\")"))
-  
+
   (testing "methods"
     (check (parse-str "a.b(1)") => "(.b a 1)")
     (check (parse-str "a.b1(2)") => "(.b1 a 2)"))
@@ -39,31 +39,33 @@
 (deftest classes
   (testing "instantiate class"
     (check (parse-str "class A {}")
-           => "(modern/defclass A (constructor [this]))")
+           => "(ns your.ns (:require [shadow.cljs.modern :as modern])) (modern/defclass A (constructor [this]))")
 
     (check (parse-str "class A extends B {}")
-           => "(modern/defclass A (extends B) (constructor [this]))")
+           => "(ns your.ns (:require [shadow.cljs.modern :as modern])) (modern/defclass A (extends B) (constructor [this]))")
 
     (check (parse-str "class B {constructor(a) { a }}")
-           => "(modern/defclass B (constructor [this a] a))")
+           => "(ns your.ns (:require [shadow.cljs.modern :as modern])) (modern/defclass B (constructor [this a] a))")
 
     (check (parse-str "class B {constructor(a) {} foo(a, b) { a + b } bar() {}}")
-           => "(modern/defclass B (constructor [this a]) Object (foo [this a b] (+ a b)) (bar [this]))"))
+           => "(ns your.ns (:require [shadow.cljs.modern :as modern])) (modern/defclass B (constructor [this a]) Object (foo [this a b] (+ a b)) (bar [this]))"))
 
   (testing "getters and setters"
     (check (parse-str "class B { get a() { return 10 } }")
-           => (str "(modern/defclass B (constructor [this])) "
+           => (str "(ns your.ns (:require [shadow.cljs.modern :as modern])) "
+                   "(modern/defclass B (constructor [this])) "
                    "(.defineProperty js/Object (.-prototype B) \"a\" "
                    "#js {:get (fn [] (this-as this 10))})"))
 
     (check (parse-str "class B { set a(v) { v } }")
-           => (str "(modern/defclass B (constructor [this])) "
+           => (str "(ns your.ns (:require [shadow.cljs.modern :as modern])) "
+                   "(modern/defclass B (constructor [this])) "
                    "(.defineProperty js/Object (.-prototype B) \"a\" "
                    "#js {:set (fn [v] (this-as this v))})")))
 
   (testing "class expressions"
     (check (parse-str "const a = class B {}")
-           => (str "(def a (modern/defclass B (constructor [this])))")))
+           => (str "(ns your.ns (:require [shadow.cljs.modern :as modern])) (def a (modern/defclass B (constructor [this])))")))
 
   (testing "instantiating a class"
      (check (parse-str "new String(a)") => "(String. a)"))
@@ -73,7 +75,7 @@
      (core/random-identifier) => "--c"
      ---
      (check (parse-str "class A { constructor({a}) { a }}")
-            => "(modern/defclass A (constructor [this --c] (let [a (.-a --c)] a)))"))))
+            => "(ns your.ns (:require [shadow.cljs.modern :as modern])) (modern/defclass A (constructor [this --c] (let [a (.-a --c)] a)))"))))
 
 (deftest this
   (testing "this outside classes"
@@ -81,4 +83,4 @@
 
   (testing "and inside a class"
     (check (parse-str "class A { constructor() { this.a }}")
-           => "(modern/defclass A (constructor [this] (.-a this)))")))
+           => "(ns your.ns (:require [shadow.cljs.modern :as modern])) (modern/defclass A (constructor [this] (.-a this)))")))
