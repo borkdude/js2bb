@@ -10,9 +10,9 @@ pages:
     - apk add --no-cache openjdk11
     - npm install
     - npx shadow-cljs release browser
-    artifacts:
-      paths:
-        - public
+  artifacts:
+    paths:
+      - public
   rules:
     - if: '$CI_COMMIT_BRANCH == "master"'
 
