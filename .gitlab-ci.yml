@@ -8,6 +8,8 @@ pages:
   stage: deploy
   script:
     - apk add --no-cache openjdk11
+    - npm install
+    - npx shadow-cljs release browser
     artifacts:
       paths:
         - public
