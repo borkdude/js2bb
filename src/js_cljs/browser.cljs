@@ -29,7 +29,8 @@
                :lineNumbers true}))
   (parse-elems @editors)
 
-  (-> @editors first (.on "changes" #(parse-elems @editors))))
+  (let [[^js editor] @editors]
+    (.on editor "changes" #(parse-elems @editors))))
 
 (defn ^:dev/before-load remove-editors []
   (doseq [^js editor @editors]
