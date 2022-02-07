@@ -404,4 +404,6 @@
    (-> code
        from-js
        (parse-frag (assoc (:format-opts opts) :cljs-requires (atom [])))
-       (zprint/zprint-file-str "file: example.cljs" (:zprint-opts opts)))))
+       (cond->
+         (-> opts :zprint-opts :disable not)
+         (zprint/zprint-file-str "file: example.cljs" (:zprint-opts opts))))))

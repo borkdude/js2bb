@@ -2,11 +2,44 @@
 <html lang="en" dir="ltr">
   <head>
     <meta charset="utf-8">
-    <title></title>
+    <title>(str/replace "Javascript" #"Javas" "ClojureS")</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.9.0/codemirror.min.css">
   </head>
+  <style media="screen">
+    .CodeMirror {
+      font-size: 2em;
+    }
+    div.parent {
+      height: 100vh;
+      display: flex;
+      flex-direction: row;
+      border: 1px solid;
+    }
+    div.child {
+      border: 1px red solid;
+      width: 50%;
+    }
+    .CodeMirror {
+      height: 90%;
+    }
+
+  </style>
   <body>
-    <div id="app">
-      Hello, world
+    <div class="parent">
+      <div class="child">
+        <h2>Javascript code</h2>
+        <textarea id="js">const who = "World";
+console.log("Hello,", who);</textarea>
+      </div>
+      <div class="child">
+        <h2>ClojureScript code</h2>
+        <textarea id="cljs"></textarea>
+      </div>
     </div>
+
+    <script type="text/javascript" src="https://unpkg.com/codemirror@5.9.0/lib/codemirror.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.9.0/mode/javascript/javascript.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.9.0/mode/clojure/clojure.min.js"></script>
+    <script type="text/javascript" src="js/index.js"></script>
   </body>
 </html>
