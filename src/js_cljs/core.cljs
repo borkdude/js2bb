@@ -168,8 +168,11 @@
         parsed (mapv #(parse-frag % state) elems)
         last (-> quasis peek (parse-frag state))
         parsed (cond-> parsed (not= last "\"\"") (conj last))]
-    (str "(modern/js-template " (when tag (str (parse-frag tag state) " "))
-         (str/join " " parsed) ")")))
+    (cond
+      tag (str "(modern/js-template " (parse-frag tag state) " "
+               (str/join " " parsed) ")")
+      (seq parsed) (str "(str " (str/join " " parsed) ")")
+      :else "\"\"")))
 
 (defmethod parse-frag "TaggedTemplateExpression" [{:keys [tag quasi]} state]
   (template-lit tag quasi state))
@@ -253,8 +256,8 @@
       [obj prop]
       (cond
         (re-matches #"\"?\d+\"?" prop) (str "(nth " obj " " (js/parseInt prop) ")")
-        (re-find #"[^a-zA-Z_]" prop) (str "(aget " obj " " prop ")")
-        :else (str "(.-" prop " " obj ")")))))
+        (re-matches #"[a-zA-Z][a-zA-Z_\d]*" prop) (str "(.-" prop " " obj ")")
+        :else (str "(aget " obj " " prop ")")))))
 
 (defmethod parse-frag "ObjectPattern" [{:keys [properties]} state]
   (mapv #(parse-frag % (assoc state :single? true))

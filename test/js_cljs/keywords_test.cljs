@@ -44,10 +44,13 @@
 
 (deftest template-literals
   (testing "interpolated-strings"
+    (check (parse-str "``") => "\"\"")
     (check (parse-str "`a${b}c${d}e${f}`")
-           => "(modern/js-template \"a\" b \"c\" d \"e\" f)")
+           => "(str \"a\" b \"c\" d \"e\" f)")
     (check (parse-str "`a${b}c${d}e${f}g`")
-           => "(modern/js-template \"a\" b \"c\" d \"e\" f \"g\")")
+           => "(str \"a\" b \"c\" d \"e\" f \"g\")"))
+
+  (testing "tagged literals"
     (check (parse-str "foo`a${b}c`")
            => "(modern/js-template foo \"a\" b \"c\")")))
 
