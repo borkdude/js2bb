@@ -187,7 +187,9 @@
 (defmethod parse-frag "AssignmentExpression" [{:keys [operator left right]} state]
   (let [vars (parse-frag left (assoc state :single? true :special-js? true))
         val (parse-frag right (assoc state :single? true))
-        attr (-> vars second str delay)]
+        attr (-> vars second delay)
+        obj (delay (let [f (first vars)]
+                     (if (vector? f) (str "(.-" (second f) " " (first f) ")") f)))]
 
     (cond
       (not= "=" operator)
@@ -196,14 +198,11 @@
       (string? vars)
       (str "(def " vars " " val ")")
 
-      (re-matches #"\"?\d+\"?" @attr)
-      (str "(aset " (first vars) " " (js/parseInt @attr) " " val ")")
-
-      (re-find #"[^a-zA-Z_]" @attr)
-      (str "(aset " (first vars) " " @attr " " val ")")
+      (:computed left)
+      (str "(aset " @obj " " @attr " " val ")")
 
       :else
-      (str "(aset " (first vars) " " (pr-str @attr) " " val ")"))))
+      (str "(aset " @obj " " (pr-str @attr) " " val ")"))))
 
 (defn- make-destr-def [[k v] val]
   (str "(def " k " (.-" v " " val "))"))
@@ -249,14 +248,14 @@
   [(parse-frag key (assoc state :single? true))
    (parse-frag value (assoc state :single? true))])
 
-(defmethod parse-frag "MemberExpression" [{:keys [object property]} state]
+(defmethod parse-frag "MemberExpression" [{:keys [object property computed] :as m} state]
   (let [obj (parse-frag object state)
         prop (parse-frag property state)]
     (if (:special-js? state)
       [obj prop]
       (cond
+        (not computed) (str "(.-" prop " " obj ")")
         (re-matches #"\"?\d+\"?" prop) (str "(nth " obj " " (js/parseInt prop) ")")
-        (re-matches #"[a-zA-Z][a-zA-Z_\d]*" prop) (str "(.-" prop " " obj ")")
         :else (str "(aget " obj " " prop ")")))))
 
 (defmethod parse-frag "ObjectPattern" [{:keys [properties]} state]
@@ -388,8 +387,8 @@
 #_
 (parse-str "a++")
 
-#_(from-js "let a = /asdf/")
-#_(from-js "class B { get a() { return 10 } }")
+#_(from-js "a.b = 1")
+#_(from-js "a[b] = 1")
 
 (defn- from-js [code]
   (-> code

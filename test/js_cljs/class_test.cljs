@@ -5,16 +5,24 @@
             [js-cljs.core :refer [parse-str] :as core]))
 
 (deftest js-members
-  (check (parse-str "a.b") => "(.-b a)")
-  (check (parse-str "a.b1") => "(.-b1 a)")
-  (check (parse-str "a.b(1)") => "(.b a 1)")
-  (check (parse-str "a.b1(2)") => "(.b1 a 2)")
-  (check (parse-str "a.b = 1") => "(aset a \"b\" 1)")
-  (check (parse-str "(()=> {a.b = 1})()") => "((fn [] (aset a \"b\" 1)))")
+  (testing "attributes"
+    (check (parse-str "a.b") => "(.-b a)")
+    (check (parse-str "a[b]") => "(aget a b)")
+    (check (parse-str "a[0]") => "(nth a 0)")
+    (check (parse-str "a[\"1b\"]") => "(aget a \"1b\")"))
+  
+  (testing "methods"
+    (check (parse-str "a.b(1)") => "(.b a 1)")
+    (check (parse-str "a.b1(2)") => "(.b1 a 2)"))
 
-  (check (parse-str "a[\"1b\"]") => "(aget a \"1b\")")
-  (check (parse-str "a[b-1]") => "(aget a (- b 1))")
-  (check (parse-str "a[b-1] = 1") => "(aset a (- b 1) 1)")
+  (testing "setting"
+    (check (parse-str "a.b = 1") => "(aset a \"b\" 1)")
+    (check (parse-str "a[b] = 1") => "(aset a b 1)")
+    (check (parse-str "a.b[c] = 1") => "(aset (.-b a) c 1)")
+    (check (parse-str "(()=> {a.b = 1})()") => "((fn [] (aset a \"b\" 1)))")
+
+    (check (parse-str "a[b-1]") => "(aget a (- b 1))")
+    (check (parse-str "a[b-1] = 1") => "(aset a (- b 1) 1)"))
 
   (testing "inside other functions"
     (check (parse-str "f(a.b)") => "(f (.-b a))")))
