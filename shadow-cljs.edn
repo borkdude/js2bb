@@ -3,7 +3,14 @@
  :dependencies [[check "0.2.1-SNAPSHOT"]
                 [zprint "1.2.1"]]
 
+ :dev-http {8080 "public"}
+
  :builds {:node {:target :node-script
                  :main js-cljs.node/main
                  :output-to "target/index.js"
-                 :devtools {:preloads [js-cljs.all-tests]}}}}
+                 :devtools {:preloads [js-cljs.all-tests]}}
+          :browser {:target :browser
+                    :modules {:index {:init-fn js-cljs.browser/main}}
+                    :output-to "public/js/index.js"
+                    :output-dir "public/js"
+                    :asset-path "public"}}}
