@@ -8,9 +8,11 @@
   (aset (js/document.querySelector "div.error") "hidden" (not visible?)))
 (set-visibility false)
 
-(defn- make-error-str [{:keys [error debug]}]
+(defn- make-error-str [in {:keys [error debug]}]
   (cond-> (.-message error)
-    debug (str "\n" debug)))
+    debug (str "\nLast line to parse:"
+               (count (.split (subs in 0 (:start debug)) "\n")))))
+
 (defn- parse-elems [[^js js, ^js cljs]]
   (let [in (. js getValue)
         debug (atom nil)
@@ -26,7 +28,7 @@
     (if-let [success (:result to-cljs)]
       (. cljs setValue success)
       (aset (js/document.querySelector "div.error")
-            "innerText" (make-error-str to-cljs)))))
+            "innerText" (make-error-str in to-cljs)))))
 
 (defn ^:dev/after-load main []
   (swap! editors conj
