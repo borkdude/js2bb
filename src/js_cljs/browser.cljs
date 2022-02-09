@@ -1,17 +1,31 @@
 (ns js-cljs.browser
   (:require [js-cljs.core :refer [parse-str]]))
 
+(defonce error (atom {}))
 (defonce ^:private editors (atom []))
+
+(defn- set-visibility [visible?]
+  (aset (js/document.querySelector "div.error") "hidden" (not visible?)))
+(set-visibility false)
 
 (defn- parse-elems [[^js js, ^js cljs]]
   (let [in (. js getValue)
         debug (atom nil)
-        to-cljs (parse-str in {:zprint-opts {:style [:community]
-                                             :parse {:interpose "\n\n"}
-                                             :width 60
-                                             :pair {:nl-separator? true}}
-                               :format-opts {:debug debug}})]
-    (. cljs setValue to-cljs)))
+        to-cljs (try
+                  {:result (parse-str in {:zprint-opts {:style [:community]
+                                                        :parse {:interpose "\n\n"}
+                                                        :width 60
+                                                        :pair {:nl-separator? true}}
+                                          :format-opts {:debug debug}})}
+                  (catch :default e {:error e :debug @debug}))]
+
+    (set-visibility (:error to-cljs))
+    (if-let [success (:result to-cljs)]
+      (. cljs setValue success)
+      (aset (js/document.querySelector "div.error")
+            "innerText" (-> to-cljs :error .-message)))))
+
+
 
 (defn ^:dev/after-load main []
   (swap! editors conj

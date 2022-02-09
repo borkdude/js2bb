@@ -20,6 +20,13 @@
     .CodeMirror {
       height: 90%;
     }
+    div.error {
+      position: absolute;
+      bottom: 0px;
+      height: 7em;
+      left: 5%;
+      width: 90%;
+    }
 
   </style>
   <body>
@@ -32,6 +39,8 @@ console.log("Hello,", who);</textarea>
       <div class="child">
         <h2>ClojureScript code</h2>
         <textarea id="cljs"></textarea>
+      </div>
+      <div class="error">
       </div>
     </div>
 
