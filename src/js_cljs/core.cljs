@@ -188,7 +188,7 @@
 (defmethod parse-frag "ThrowStatement" [{:keys [argument]} state]
   (str "(throw " (parse-frag argument state) ")"))
 
-(defmethod parse-frag "AssignmentExpression" [{:keys [operator left right]} state]
+(defmethod parse-frag "AssignmentExpression" [{:keys [operator left right] :as a} state]
   (let [vars (parse-frag left (assoc state :single? true :special-js? true))
         val (parse-frag right (assoc state :single? true))
         attr (-> vars second delay)
@@ -196,11 +196,8 @@
                      (if (vector? f) (str "(.-" (second f) " " (first f) ")") f)))]
 
     (cond
-      (not= "=" operator)
-      (str "(js* " (pr-str (str "~{} " operator " ~{}")) " " vars " " val ")")
-
       (string? vars)
-      (str "(def " vars " " val ")")
+      (str "(js* " (pr-str (str "~{} " operator " ~{}")) " " vars " " val ")")
 
       (:computed left)
       (str "(aset " @obj " " @attr " " val ")")

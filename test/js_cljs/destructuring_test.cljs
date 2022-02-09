@@ -5,7 +5,7 @@
             [js-cljs.core :refer [parse-str] :as core]))
 
 (deftest js-objects
-  (check (parse-str "a={a: 10, b: 20}") => "(def a #js {:a 10 :b 20})")
+  (check (parse-str "const a={a: 10, b: 20}") => "(def a #js {:a 10 :b 20})")
   (check (parse-str "[1, 2]") => "#js [1 2]"))
 
 (deftest js-arrays

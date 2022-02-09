@@ -58,7 +58,7 @@
 
 (deftest vars
   (testing "global vars"
-    (check (parse-str "a = 10") => "(def a 10)")
+    (check (parse-str "a = 10") => "(js* \"~{} = ~{}\" a 10)")
     (check (parse-str "const a = 10") => "(def a 10)")
     (check (parse-str "let a = 10") => "(def a 10)")
     (check (parse-str "var a = 10") => "(def a 10)")
@@ -77,7 +77,7 @@
            => "(defn a [] (let [a nil] ))")))
 
 (deftest multiple-commands
-  (check (parse-str "a=1;b=2") => "(def a 1)\n(def b 2)"))
+  (check (parse-str "const a=1;const b=2") => "(def a 1)\n(def b 2)"))
 
 (deftest try-catch
   (check (parse-str "throw e") => "(throw e)")
