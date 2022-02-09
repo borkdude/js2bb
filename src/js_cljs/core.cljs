@@ -32,10 +32,13 @@
         test (if test
                (parse-frag test (assoc state :single? true))
                "true")]
+
     (str (when init
            (str "(let [" id " " val "] "))
          "(while " test
-         " " (block (:body body) (assoc state :single? false) " ")
+         " " (block (:body body)
+                    (assoc state :root? false :single? false :locals (atom []))
+                    " ")
          (when update (str " " (parse-frag update (assoc state :single? false))))
          ")"
          (when init ")"))))
@@ -350,7 +353,6 @@
          ")")))
 
 (defmethod parse-frag "SwitchCase" [{:keys [test consequent]} state]
-  (def c (if (nil? c) consequent c))
   (let [body (block consequent state " ")]
     (if test
       (str (parse-frag test state) " " body)

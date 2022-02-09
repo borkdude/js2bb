@@ -25,6 +25,8 @@
            => "(let [i 0] (while true (a i) (js* \"~{}++\" i)))")
     (check (parse-str "for(let i=0; ; i++) { a(i) }")
            => "(let [i 0] (while true (a i) (js* \"~{}++\" i)))")
+    (check (parse-str "for(let i=0; ; i++) { const b = 1; b }")
+           => "(let [i 0] (while true (let [b 1] b) (js* \"~{}++\" i)))")
 
     (check (parse-str "for(let i=0; i < 10; i++) { a(i) }")
            => "(let [i 0] (while (< i 10) (a i) (js* \"~{}++\" i)))"))
@@ -52,7 +54,7 @@
 
   (testing "tagged literals"
     (check (parse-str "foo`a${b}c`")
-           => "(modern/js-template foo \"a\" b \"c\")")))
+           => "(ns your.ns (:require [shadow.cljs.modern :as modern])) (modern/js-template foo \"a\" b \"c\")")))
 
 ; (deftest flow-keywords
 ;   (check (parse-str "continue") => "(js* \"continue\")"))
