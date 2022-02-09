@@ -31,9 +31,9 @@
   (let [[id val] (when init (parse-frag (-> init :declarations first) (assoc state :root? false)))
         test (if test
                (parse-frag test (assoc state :single? true))
-               "true")]
-
-    (str (when init
+               "true")
+        add-let? (and init (not (:locals state)))]
+    (str (when add-let?
            (str "(let [" id " " val "] "))
          "(while " test
          " " (block (:body body)
@@ -41,7 +41,7 @@
                     " ")
          (when update (str " " (parse-frag update (assoc state :single? false))))
          ")"
-         (when init ")"))))
+         (when add-let? ")"))))
 
 (defn- get-operator [operator]
   (case operator
