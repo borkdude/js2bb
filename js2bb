@@ -1,0 +1,13 @@
+#!/usr/bin/env nbb
+
+(require '[js-cljs.core :as j]
+         '["fs" :as fs]
+         '["child_process" :as proc]
+         '[goog.string :as gstring])
+
+(def bb-program (j/parse-str (fs/readFileSync (first *command-line-args*) "UTF-8")))
+(println "Transpiled to bb: ")
+(println "----")
+(println bb-program)
+(println "----")
+(proc/spawnSync "bb" #js ["-e" (gstring/format bb-program)] #js {:stdio "inherit"})

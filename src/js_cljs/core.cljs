@@ -1,7 +1,8 @@
 (ns js-cljs.core
   (:require ["acorn" :refer [parse]]
-            [zprint.core :as zprint]
-            [clojure.string :as str]))
+            #_[zprint.core :as zprint]
+            [clojure.string :as str]
+            [goog.string :as gstring]))
 
 (defmulti parse-frag (fn [step state]
                        (when (and step (:debug state)) (reset! (:debug state) step))
@@ -85,12 +86,18 @@
         rest (cond
                (seq rst) [(str "(concat " fst " [" (str/join " " rst) "])")]
                fst [fst])]
-    (if (string? callee)
+    (if (not (coll? callee))
       (if rest
         (str "(apply " (str/join " " (concat [callee] non-rest rest)) ")")
-        (str "(" (->> args (cons callee) (str/join " ")) ")"))
-      (str "(." (second callee) " " (first callee) " " (str/join " " args)
-           ")"))))
+        (do
+          (prn callee (type callee))
+          (str "(" (->> args (cons callee) (str/join " ")) ")")))
+      (if (contains? @(:cljs-requires state) (first callee))
+        (str "(" (first callee) "/" (second callee) " " (str/join " " args)
+             ")")
+        (str "(." (second callee) " " (first callee) " " (str/join " " args)
+             ")")))))
+
 (defmethod parse-frag "CallExpression" [prop state] (call-expr prop state))
 (defmethod parse-frag "NewExpression" [props state]
   (call-expr (update-in props [:callee :name] str ".") state))
@@ -165,16 +172,20 @@
        ")] " (parse-frag body (assoc state :single? false)) ")"))
 
 (defn- template-lit [tag {:keys [expressions quasis]} state]
-  (when tag
+  #_(when tag
     (swap! (:cljs-requires state) conj '[shadow.cljs.modern :as modern]))
   (let [state (assoc state :single? true)
         elems (interleave quasis expressions)
         parsed (mapv #(parse-frag % state) elems)
         last (-> quasis peek (parse-frag state))
         parsed (cond-> parsed (not= last "\"\"") (conj last))]
+    (prn quasis)
     (cond
-      tag (str "(modern/js-template " (parse-frag tag state) " "
-               (str/join " " parsed) ")")
+      tag (case  (:name tag)
+            "k" (str ":" (-> quasis peek :value :raw))
+            "s" (-> quasis peek :value :raw)
+            (str "(modern/js-template " (parse-frag tag state) " "
+                 (str/join " " parsed) ")"))
       (seq parsed) (str "(str " (str/join " " parsed) ")")
       :else "\"\"")))
 
@@ -378,6 +389,13 @@
                 (str "~{}" operator))]
     (str "(js* " (pr-str macro) " " (parse-frag argument (assoc state :single? true)) ")")))
 
+(defmethod parse-frag "ImportDeclaration" [m state]
+  (let [src (:source m)
+        specs (:specifiers m)
+        alias (-> specs first :local :name)]
+    (swap! (:cljs-requires state) conj alias)
+    (gstring/format "(require '[%s :as %s])" (:value src) alias)))
+
 (defmethod parse-frag :default [dbg state]
   (tap> dbg)
   (def t (:type dbg))
@@ -392,13 +410,14 @@
 
 (defn- from-js [code]
   (-> code
-      (parse #js {:ecmaVersion 2020})
+      (parse #js {:ecmaVersion 2020
+                  :sourceType "module"})
       js/JSON.stringify
       js/JSON.parse
       (js->clj :keywordize-keys true)))
 
 (defn- add-requires [code requires]
-  (cond->> code
+  code #_(cond->> code
     (seq requires)
     (str "(ns your.ns (:require " (str/join " " requires) ")) ")))
 
@@ -415,6 +434,6 @@
          from-js
          (parse-frag (assoc (:format-opts opts) :cljs-requires reqs))
          (add-requires @reqs)
-         (cond->
+         #_(cond->
            (-> opts :zprint-opts :disable not)
            (zprint/zprint-file-str "file: example.cljs" (:zprint-opts opts)))))))
